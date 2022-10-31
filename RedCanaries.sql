@@ -104,7 +104,7 @@ CREATE TABLE Discount
 
 CREATE TABLE Special
 (
-	SpecailID		int	NOT NULL	IDENTITY(1,1),
+	SpecialID		int	NOT NULL	IDENTITY(1,1),
 	FoodItemID		int	NOT NULL,
 	LocationID		int	NOT NULL,
 	SpecialWeekDay	tinyint
@@ -128,7 +128,7 @@ GO
 	ALTER TABLE Menu
 	ADD PRIMARY KEY (MenuID)
 
-	ALTER TABLE FoodItem
+	ALTER TABLE Food_Item
 	ADD PRIMARY KEY (FoodItemID)
 
 	ALTER TABLE Recipe
@@ -152,6 +152,90 @@ GO
 	ALTER TABLE Special
 	ADD PRIMARY KEY (SpecialID)
 GO
+/********************************
+*	1 Address
+********************************/
+
+/********************************
+*	2 Location
+********************************/
+	-- Foreign Keys
+	ALTER TABLE Location
+	ADD FOREIGN KEY (LocationAddress) REFERENCES Address(AddressID)
+
+/********************************
+*	3 Menu
+********************************/
+	-- Foreign Keys
+	ALTER TABLE Menu
+	ADD FOREIGN KEY (LocationID) REFERENCES Location(LocationID)
+	
+	ALTER TABLE Menu
+	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
+
+/********************************
+*	4 Food_Item
+********************************/
+
+/********************************
+*	5 Recipe
+********************************/
+	-- Foreign Keys
+	ALTER TABLE Recipe
+	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
+
+	ALTER TABLE Recipe
+	ADD FOREIGN KEY (IngredientID) REFERENCES Ingredient(IngredientID)
+
+/********************************
+*	6 Ingredient
+********************************/
+	
+/********************************
+*	7 Inventory
+********************************/
+	-- Foreign Keys
+	ALTER TABLE Inventory
+	ADD FOREIGN KEY (LocationID) REFERENCES Location(LocationID)
+	
+	ALTER TABLE Inventory
+	ADD FOREIGN KEY (IngredientID) REFERENCES Ingredient(IngredientID)
+
+
+/********************************
+*	8 Ordered_Item
+********************************/
+	-- Foreign Keys
+	ALTER TABLE Ordered_Item
+	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
+
+	ALTER TABLE Ordered_Item
+	ADD FOREIGN KEY (ReceiptID) REFERENCES Receipt(ReceiptID)
+
+/********************************
+*	9 Receipt
+********************************/
+	-- Foreign Keys
+	ALTER TABLE Receipt
+	ADD FOREIGN KEY (DiscountID) REFERENCES Discount(DiscountID)
+
+	ALTER TABLE Receipt
+	ADD FOREIGN KEY (LocationID) REFERENCES Location(LocationID)
+
+/********************************
+*	10 Discount
+********************************/
+
+/********************************
+*	11 Special
+********************************/
+	-- Foreign Keys
+	ALTER TABLE Special
+	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
+
+	ALTER TABLE Special
+	ADD FOREIGN KEY (LocationID) REFERENCES Location(LocationID)
+
 
 /****************************************************************
 *
