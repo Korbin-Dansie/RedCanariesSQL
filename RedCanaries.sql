@@ -165,6 +165,9 @@ GO
 	-- Foreign Keys
 	ALTER TABLE Restaurant
 	ADD FOREIGN KEY (AddressID) REFERENCES Address(AddressID)
+	
+	ALTER TABLE Restaurant
+	ADD FOREIGN KEY (HotelID) REFERENCES Hotel(HotelID)
 
 /********************************
 *	3 Menu
