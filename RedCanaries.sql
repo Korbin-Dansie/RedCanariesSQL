@@ -112,7 +112,7 @@ CREATE TABLE Special
 	RestaurantID	smallint	NOT NULL,
 	SpecialWeekDay	tinyint
 )
-GO
+
 
 -- Temporarily add hotel table
 CREATE TABLE Hotel
@@ -128,6 +128,7 @@ CREATE TABLE Hotel
 	HotelPictureLink	varchar(100),
 	TaxLocationID		smallint	NOT NULL
 )
+GO
 
 /****************************************************************
 *
@@ -169,6 +170,10 @@ CREATE TABLE Hotel
 
 	ALTER TABLE Special
 	ADD PRIMARY KEY (SpecialID)
+
+	-- Temporarily add hotel table
+	ALTER TABLE Hotel
+	ADD PRIMARY KEY (HotelID)
 GO
 /********************************
 *	1 Address
