@@ -22,7 +22,7 @@ USE RedCanaries_CS3550
 
 CREATE TABLE [Address] 
 (
-	AddressID		int				NOT NULL	IDENTITY(1,1),
+	AddressID		smallint		NOT NULL	IDENTITY(1,1),
 	AddressLine1	varchar(30)		NOT NULL,
 	AddressLine2	varchar(10),
 	City			varchar(20)		NOT NULL,
@@ -30,24 +30,25 @@ CREATE TABLE [Address]
 	PostalCode		char(10)		NOT NULL,
 	Country			varchar(20)		NOT NULL
 );
-
-CREATE TABLE [Location]
+             
+CREATE TABLE Restaurant
 (
-	LocationID		int		NOT NULL	IDENTITY(1,1),
-	LocationAddress	int,
-	LocationName	varchar(MAX)
+	RestaurantID		smallint	NOT NULL	IDENTITY(1,1),
+	RestaurantName		varchar(MAX),
+	AddressID			smallint	NOT NULL,
+	HotelID				smallint
 );
 
 CREATE TABLE Menu
 (
-	MenuID			int		NOT NULL	IDENTITY(1,1),
-	LocationID		int		NOT NULL,
-	FoodItemID		int		NOT NULL,
+	MenuID			int			NOT NULL	IDENTITY(1,1),
+	RestaurantID	smallint	NOT NULL,
+	FoodItemID		smallint	NOT NULL,
 );
 
 CREATE TABLE Food_Item
 (
-	FoodItemID			int			NOT NULL	IDENTITY(1,1),
+	FoodItemID			smallint	NOT NULL	IDENTITY(1,1),
 	FoodName			varchar(30)	NOT NULL,
 	FoodDescription		varchar(MAX),
 	FoodPrice			smallmoney	NOT NULL
@@ -55,58 +56,60 @@ CREATE TABLE Food_Item
 
 CREATE TABLE Recipe
 (
-	RecipeID		int		NOT NULL	IDENTITY(1,1),
-	FoodItemID		int		NOT NULL,
-	IngredientID	int		NOT NULL
+	RecipeID		int			NOT NULL	IDENTITY(1,1),
+	FoodItemID		smallint	NOT NULL,
+	IngredientID	smallint	NOT NULL
 )
 
 CREATE TABLE Ingredient
 (
-	IngredientID	int			NOT NULL	IDENTITY(1,1),
+	IngredientID	smallint	NOT NULL	IDENTITY(1,1),
 	IngredientName	varchar(30)	NOT NULL
 )
 
 CREATE TABLE Inventory
 (
-	InventoryID		int		NOT NULL	IDENTITY(1,1),
-	LocationID		int		NOT NULL,
-	IngredientID	int		NOT NULL,
+	InventoryID			int			NOT NULL	IDENTITY(1,1),
+	RestaurantID		smallint	NOT NULL,
+	IngredientID		smallint	NOT NULL,
+	InventoryQuantity	tinyint
 )
 
 CREATE TABLE Ordered_Item
 (
-	OrderedItemID	int		NOT NULL	IDENTITY(1,1),	
-	FoodItemID		int		NOT NULL,
-	ReceiptID		int		NOT NULL,
-	Adjustments		varchar(MAX)
+	OrderedItemID		int			NOT NULL	IDENTITY(1,1),	
+	FoodItemID			smallint	NOT NULL,
+	ReceiptID			int			NOT NULL,
+	OrderedAdjustments	varchar(MAX),
+	OrderedPrice		smallmoney	NOT NULL,
 )
 
 
 CREATE TABLE Receipt
 (
 	ReceiptID				int			NOT NULL IDENTITY(1,1),
-	RedeiptCreditCardNum	varchar(16),
+	ReceiptCCType			varchar(5)	NOT NULL,
+	ReceiptCCNumber			varchar(16) NOT NULL,
 	DiscountID				int,
 	ReceiptAmountPaid		smallmoney,
-	LocationID				int,
+	RestaurantID			int,
 	ReceiptTip				smallmoney
 )
 
 CREATE TABLE Discount
 (
-	DiscountID			int	NOT NULL	IDENTITY(1,1),
-	DiscountName		varchar(20),
-	DiscountDescription	varchar(50),
+	DiscountID			smallint	NOT NULL	IDENTITY(1,1),
+	DiscountDescription	varchar(50)	NOT NULL,
+	DiscountExpiration	date		NOT NULL,
 	DiscountAmount		smallmoney,
-	DiscountPercent		decimal(4,2),
-	DiscountExpiration	date
+	DiscountPercent		decimal(4,2)
 )
 
 CREATE TABLE Special
 (
-	SpecialID		int	NOT NULL	IDENTITY(1,1),
-	FoodItemID		int	NOT NULL,
-	LocationID		int	NOT NULL,
+	SpecialID		int			NOT NULL	IDENTITY(1,1),
+	FoodItemID		smallint	NOT NULL,
+	RestaurantID	smallint	NOT NULL,
 	SpecialWeekDay	tinyint
 )
 GO
@@ -122,8 +125,8 @@ GO
 	ALTER TABLE [Address]
 	ADD PRIMARY KEY (AddressID)
 
-	ALTER TABLE [Location]
-	ADD PRIMARY KEY (LocationID)
+	ALTER TABLE Restaurant
+	ADD PRIMARY KEY (RestaurantID)
 	
 	ALTER TABLE Menu
 	ADD PRIMARY KEY (MenuID)
@@ -157,18 +160,18 @@ GO
 ********************************/
 
 /********************************
-*	2 Location
+*	2 Restaurant
 ********************************/
 	-- Foreign Keys
-	ALTER TABLE Location
-	ADD FOREIGN KEY (LocationAddress) REFERENCES Address(AddressID)
+	ALTER TABLE Restaurant
+	ADD FOREIGN KEY (AddressID) REFERENCES Address(AddressID)
 
 /********************************
 *	3 Menu
 ********************************/
 	-- Foreign Keys
 	ALTER TABLE Menu
-	ADD FOREIGN KEY (LocationID) REFERENCES Location(LocationID)
+	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
 	
 	ALTER TABLE Menu
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
@@ -196,11 +199,10 @@ GO
 ********************************/
 	-- Foreign Keys
 	ALTER TABLE Inventory
-	ADD FOREIGN KEY (LocationID) REFERENCES Location(LocationID)
+	ADD FOREIGN KEY (RestaurantID) REFERENCES Location(RestaurantID)
 	
 	ALTER TABLE Inventory
 	ADD FOREIGN KEY (IngredientID) REFERENCES Ingredient(IngredientID)
-
 
 /********************************
 *	8 Ordered_Item
@@ -220,7 +222,7 @@ GO
 	ADD FOREIGN KEY (DiscountID) REFERENCES Discount(DiscountID)
 
 	ALTER TABLE Receipt
-	ADD FOREIGN KEY (LocationID) REFERENCES Location(LocationID)
+	ADD FOREIGN KEY (RestaurantID) REFERENCES Location(RestaurantID)
 
 /********************************
 *	10 Discount
@@ -234,8 +236,7 @@ GO
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
 
 	ALTER TABLE Special
-	ADD FOREIGN KEY (LocationID) REFERENCES Location(LocationID)
-
+	ADD FOREIGN KEY (RestaurantID) REFERENCES Location(RestaurantID)
 
 /****************************************************************
 *
