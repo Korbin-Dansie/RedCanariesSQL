@@ -23,18 +23,18 @@ USE RedCanaries_CS3550
 CREATE TABLE [Address] 
 (
 	AddressID		smallint		NOT NULL	IDENTITY(1,1),
-	AddressLine1	varchar(30)		NOT NULL,
-	AddressLine2	varchar(10),
-	City			varchar(20)		NOT NULL,
-	[State]			char(2),
-	PostalCode		char(10)		NOT NULL,
-	Country			varchar(20)		NOT NULL
+	AddrLine1		varchar(30)		NOT NULL,
+	AddrLine2		varchar(10),
+	AddrCity		varchar(20)		NOT NULL,
+	AddrState		char(2),
+	AddrPostalCode	char(10)		NOT NULL,
+	AddrCountry		varchar(20)		NOT NULL
 );
              
 CREATE TABLE Restaurant
 (
 	RestaurantID		smallint	NOT NULL	IDENTITY(1,1),
-	RestaurantName		varchar(MAX),
+	RestaurantName		varchar(20),
 	AddressID			smallint	NOT NULL,
 	HotelID				smallint
 );
@@ -90,9 +90,8 @@ CREATE TABLE Receipt
 	ReceiptID				int			NOT NULL IDENTITY(1,1),
 	ReceiptCCType			varchar(5)	NOT NULL,
 	ReceiptCCNumber			varchar(16) NOT NULL,
-	DiscountID				int,
-	ReceiptAmountPaid		smallmoney,
-	RestaurantID			int,
+	DiscountID				smallint,
+	RestaurantID			smallint,
 	ReceiptTip				smallmoney
 )
 
@@ -101,6 +100,7 @@ CREATE TABLE Discount
 	DiscountID			smallint	NOT NULL	IDENTITY(1,1),
 	DiscountDescription	varchar(50)	NOT NULL,
 	DiscountExpiration	date		NOT NULL,
+	DiscountRules		varchar(100),
 	DiscountAmount		smallmoney,
 	DiscountPercent		decimal(4,2)
 )
@@ -199,7 +199,7 @@ GO
 ********************************/
 	-- Foreign Keys
 	ALTER TABLE Inventory
-	ADD FOREIGN KEY (RestaurantID) REFERENCES Location(RestaurantID)
+	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
 	
 	ALTER TABLE Inventory
 	ADD FOREIGN KEY (IngredientID) REFERENCES Ingredient(IngredientID)
@@ -222,7 +222,7 @@ GO
 	ADD FOREIGN KEY (DiscountID) REFERENCES Discount(DiscountID)
 
 	ALTER TABLE Receipt
-	ADD FOREIGN KEY (RestaurantID) REFERENCES Location(RestaurantID)
+	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
 
 /********************************
 *	10 Discount
@@ -236,7 +236,7 @@ GO
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
 
 	ALTER TABLE Special
-	ADD FOREIGN KEY (RestaurantID) REFERENCES Location(RestaurantID)
+	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
 
 /****************************************************************
 *
