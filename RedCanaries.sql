@@ -114,6 +114,21 @@ CREATE TABLE Special
 )
 GO
 
+-- Temporarily add hotel table
+CREATE TABLE Hotel
+(
+	HotelID				smallint	NOT NULL, --NOT an Identity
+	HotelName			varchar(30)	NOT NULL,
+	HotelAddress		varchar(30)	NOT NULL,
+	HotelCity			varchar(20)	NOT NULL,
+	HotelState			varchar(2),
+	HotelCountry		varchar(20)	NOT NULL,
+	HotelPostalCode		char(10)	NOT NULL,
+	HotelStarRating		char(1),
+	HotelPictureLink	varchar(100),
+	TaxLocationID		smallint	NOT NULL
+)
+
 /****************************************************************
 *
 *	Add constraints
