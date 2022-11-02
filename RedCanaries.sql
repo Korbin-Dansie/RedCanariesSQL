@@ -244,6 +244,6 @@ GO
 *
 ****************************************************************/
 -- TODO: Drop table when done
---USE master
---GO
---DROP DATABASE RedCanaries_CS3550
+USE master
+GO
+DROP DATABASE RedCanaries_CS3550
