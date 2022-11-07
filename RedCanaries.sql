@@ -221,7 +221,7 @@ GO
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
 	
 	ALTER TABLE Menu_Item
-	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
+	ADD FOREIGN KEY (MenuID) REFERENCES Menu(MenuID)
 
 /********************************
 *	5 Food_Item
