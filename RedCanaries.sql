@@ -1,6 +1,6 @@
 -- Assignment:	Project Phase 1
 -- Authors:		Briella Rutherford, Korbin Dansie
--- Date:		10/31/2022
+-- Date:		11/9/2022
 
 USE master
 	IF EXISTS (SELECT * FROM sysdatabases WHERE name='RedCanaries_CS3550')
@@ -21,7 +21,7 @@ GO
 USE RedCanaries_CS3550
 
 CREATE TABLE [Address] 
-(
+( 
 	AddressID		smallint		NOT NULL	IDENTITY(1,1),
 	AddrLine1		varchar(30)		NOT NULL,
 	AddrLine2		varchar(10),
@@ -33,9 +33,10 @@ CREATE TABLE [Address]
              
 CREATE TABLE Restaurant
 (
-	RestaurantID		smallint	NOT NULL	IDENTITY(1,1),
+	 RestaurantID		smallint	NOT NULL	IDENTITY(1,1),
 	RestaurantName		varchar(20),
 	AddressID			smallint	NOT NULL,
+	RestaurantPhone		varchar(10)	NOT NULL,
 	HotelID				smallint
 );
 
@@ -43,7 +44,17 @@ CREATE TABLE Menu
 (
 	MenuID			int			NOT NULL	IDENTITY(1,1),
 	RestaurantID	smallint	NOT NULL,
+	MenuName		varchar(20)	NOT NULL,
+	MenuStartTime	time		NOT NULL,
+	MenuEndTime		time		NOT NULL
+);
+
+CREATE TABLE Menu_Item
+(
+	MenuItemID		int			NOT NULL	IDENTITY(1,1),
 	FoodItemID		smallint	NOT NULL,
+	MenuID			int			NOT NULL,
+	MenuItemPrice	smallmoney
 );
 
 CREATE TABLE Food_Item
@@ -51,7 +62,15 @@ CREATE TABLE Food_Item
 	FoodItemID			smallint	NOT NULL	IDENTITY(1,1),
 	FoodName			varchar(30)	NOT NULL,
 	FoodDescription		varchar(MAX),
-	FoodPrice			smallmoney	NOT NULL
+	AgeRestriced		bit			NOT NULL,
+	FoodCategoryID		tinyint		NOT NULL,
+	FoodDefaultPrice	smallmoney	NOT NULL
+)
+
+CREATE TABLE Food_Category
+(
+	FoodCategoryID	tinyint			NOT NULL,
+	CategoryName	varchar(20)		NOT NULL
 )
 
 CREATE TABLE Recipe
@@ -67,14 +86,6 @@ CREATE TABLE Ingredient
 	IngredientName	varchar(30)	NOT NULL
 )
 
-CREATE TABLE Inventory
-(
-	InventoryID			int			NOT NULL	IDENTITY(1,1),
-	RestaurantID		smallint	NOT NULL,
-	IngredientID		smallint	NOT NULL,
-	InventoryQuantity	tinyint
-)
-
 CREATE TABLE Ordered_Item
 (
 	OrderedItemID		int			NOT NULL	IDENTITY(1,1),	
@@ -82,17 +93,21 @@ CREATE TABLE Ordered_Item
 	ReceiptID			int			NOT NULL,
 	OrderedAdjustments	varchar(MAX),
 	OrderedPrice		smallmoney	NOT NULL,
+	OrderedItemQty		tinyint
 )
 
 
 CREATE TABLE Receipt
 (
 	ReceiptID				int			NOT NULL IDENTITY(1,1),
-	ReceiptCCType			varchar(5)	NOT NULL,
-	ReceiptCCNumber			varchar(16) NOT NULL,
+	ReceiptCCType			varchar(5),
+	ReceiptCCNumber			varchar(16),
 	DiscountID				smallint,
 	RestaurantID			smallint,
-	ReceiptTip				smallmoney
+	ReceiptTip				smallmoney,
+	ReceiptFolio			bit,
+	ReceiptDate				datetime,
+	ReceiptAgeVerified		bit
 )
 
 CREATE TABLE Discount
@@ -146,18 +161,21 @@ GO
 	
 	ALTER TABLE Menu
 	ADD PRIMARY KEY (MenuID)
+	
+	ALTER TABLE Menu_Item
+	ADD PRIMARY KEY (MenuItemID)
 
 	ALTER TABLE Food_Item
 	ADD PRIMARY KEY (FoodItemID)
+
+	ALTER TABLE Food_Category
+	ADD PRIMARY KEY (FoodCategoryID)
 
 	ALTER TABLE Recipe
 	ADD PRIMARY KEY (RecipeID)
 
 	ALTER TABLE Ingredient
 	ADD PRIMARY KEY (IngredientID)
-
-	ALTER TABLE Inventory
-	ADD PRIMARY KEY (InventoryID)
 
 	ALTER TABLE Ordered_Item
 	ADD PRIMARY KEY (OrderedItemID)
@@ -184,7 +202,7 @@ GO
 ********************************/
 	-- Foreign Keys
 	ALTER TABLE Restaurant
-	ADD FOREIGN KEY (AddressID) REFERENCES Address(AddressID)
+	ADD FOREIGN KEY (AddressID) REFERENCES [Address](AddressID)
 	
 	ALTER TABLE Restaurant
 	ADD FOREIGN KEY (HotelID) REFERENCES Hotel(HotelID)
@@ -196,39 +214,41 @@ GO
 	ALTER TABLE Menu
 	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
 	
-	ALTER TABLE Menu
+/********************************
+*	4 Menu_Item
+********************************/
+	ALTER TABLE Menu_Item
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
-
-/********************************
-*	4 Food_Item
-********************************/
-
-/********************************
-*	5 Recipe
-********************************/
-	-- Foreign Keys
-	ALTER TABLE Recipe
-	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
-
-	ALTER TABLE Recipe
-	ADD FOREIGN KEY (IngredientID) REFERENCES Ingredient(IngredientID)
-
-/********************************
-*	6 Ingredient
-********************************/
 	
-/********************************
-*	7 Inventory
-********************************/
-	-- Foreign Keys
-	ALTER TABLE Inventory
+	ALTER TABLE Menu_Item
 	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
-	
-	ALTER TABLE Inventory
+
+/********************************
+*	5 Food_Item
+********************************/
+	ALTER TABLE Food_Item
+	ADD FOREIGN KEY (FoodCategoryID) REFERENCES Food_Category(FoodCategoryID)
+
+/********************************
+*	6 Food_Category
+********************************/
+
+/********************************
+*	7 Recipe
+********************************/
+	-- Foreign Keys
+	ALTER TABLE Recipe
+	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
+
+	ALTER TABLE Recipe
 	ADD FOREIGN KEY (IngredientID) REFERENCES Ingredient(IngredientID)
 
 /********************************
-*	8 Ordered_Item
+*	8 Ingredient
+********************************/
+	
+/********************************
+*	9 Ordered_Item
 ********************************/
 	-- Foreign Keys
 	ALTER TABLE Ordered_Item
@@ -237,8 +257,13 @@ GO
 	ALTER TABLE Ordered_Item
 	ADD FOREIGN KEY (ReceiptID) REFERENCES Receipt(ReceiptID)
 
+	-- Default Keys
+	ALTER TABLE Ordered_Item
+	ADD CONSTRAINT df_OrderedItemQty
+	DEFAULT 1 FOR OrderedItemQty
+
 /********************************
-*	9 Receipt
+*	10 Receipt
 ********************************/
 	-- Foreign Keys
 	ALTER TABLE Receipt
@@ -247,12 +272,21 @@ GO
 	ALTER TABLE Receipt
 	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
 
+	-- Default Keys
+	ALTER TABLE Receipt
+	ADD CONSTRAINT df_ReceiptFolio
+	DEFAULT 0 FOR ReceiptFolio
+	
+	ALTER TABLE Receipt
+	ADD CONSTRAINT df_ReceiptAgeVerified
+	DEFAULT 0 FOR ReceiptAgeVerified
+
 /********************************
-*	10 Discount
+*	11 Discount
 ********************************/
 
 /********************************
-*	11 Special
+*	12  Special
 ********************************/
 	-- Foreign Keys
 	ALTER TABLE Special
