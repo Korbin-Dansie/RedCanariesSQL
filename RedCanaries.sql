@@ -310,6 +310,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Restaurant')
 BULK INSERT Restaurant
 FROM 'C:\Stage_RedCannaries\Restaurant.csv'
@@ -320,6 +321,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Menu')
 BULK INSERT Menu
 FROM 'C:\Stage_RedCannaries\Menu.csv'
@@ -330,6 +332,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Menu_Item')
 BULK INSERT Menu_Item
 FROM 'C:\Stage_RedCannaries\Menu_Item.csv'
@@ -340,6 +343,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Food_Item')
 BULK INSERT Food_Item
 FROM 'C:\Stage_RedCannaries\Food_Item.csv'
@@ -350,6 +354,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Food_Category')
 BULK INSERT Food_Category
 FROM 'C:\Stage_RedCannaries\Food_Category.csv'
@@ -360,6 +365,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Recipe')
 BULK INSERT Recipe
 FROM 'C:\Stage_RedCannaries\Recipe.csv'
@@ -370,6 +376,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Ingredient')
 BULK INSERT Ingredient
 FROM 'C:\Stage_RedCannaries\Ingredient.csv'
@@ -380,6 +387,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Ordered_Item')
 BULK INSERT Ordered_Item
 FROM 'C:\Stage_RedCannaries\Ordered_Item.csv'
@@ -390,6 +398,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Receipt')
 BULK INSERT Receipt
 FROM 'C:\Stage_RedCannaries\Receipt.csv'
@@ -400,6 +409,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Discount')
 BULK INSERT Discount
 FROM 'C:\Stage_RedCannaries\Discount.csv'
@@ -410,6 +420,7 @@ WITH
 	FIRSTROW = 2
 )
 
+PRINT('****************************************************************')
 PRINT('ADD Special')
 BULK INSERT Special
 FROM 'C:\Stage_RedCannaries\Special.csv'
