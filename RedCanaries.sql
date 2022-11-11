@@ -297,10 +297,136 @@ GO
 
 /****************************************************************
 *
+*	Bulk insert
+*
+****************************************************************/
+PRINT('ADD Address')
+BULK INSERT [Address]
+FROM 'C:\Stage_RedCannaries\Address.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Restaurant')
+BULK INSERT Restaurant
+FROM 'C:\Stage_RedCannaries\Restaurant.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Menu')
+BULK INSERT Menu
+FROM 'C:\Stage_RedCannaries\Menu.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Menu_Item')
+BULK INSERT Menu_Item
+FROM 'C:\Stage_RedCannaries\Menu_Item.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Food_Item')
+BULK INSERT Food_Item
+FROM 'C:\Stage_RedCannaries\Food_Item.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Food_Category')
+BULK INSERT Food_Category
+FROM 'C:\Stage_RedCannaries\Food_Category.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Recipe')
+BULK INSERT Recipe
+FROM 'C:\Stage_RedCannaries\Recipe.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Ingredient')
+BULK INSERT Ingredient
+FROM 'C:\Stage_RedCannaries\Ingredient.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Ordered_Item')
+BULK INSERT Ordered_Item
+FROM 'C:\Stage_RedCannaries\Ordered_Item.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Receipt')
+BULK INSERT Receipt
+FROM 'C:\Stage_RedCannaries\Receipt.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Discount')
+BULK INSERT Discount
+FROM 'C:\Stage_RedCannaries\Discount.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+
+PRINT('ADD Special')
+BULK INSERT Special
+FROM 'C:\Stage_RedCannaries\Special.csv'
+WITH
+(
+	FIELDTERMINATOR =	'|',
+	ROWTERMINATOR =		'\n',
+	FIRSTROW = 2
+)
+GO
+
+/****************************************************************
+*
 *	Delete Tables when done
 *
 ****************************************************************/
 -- TODO: Drop table when done
-USE master
-GO
-DROP DATABASE RedCanaries_CS3550
+--USE master
+--GO
+--DROP DATABASE RedCanaries_CS3550
