@@ -1,0 +1,8 @@
+﻿FoodItemID,FoodName,FoodDescription,AgeRestriced,FoodCategoryID,FoodDefaultPrice
+1,Pancakes,A thin flat cake of batter,0,1,12.99
+2,Spicy Omelette,We put spicy pepper is our delecious eggs,0,1,10.00
+3,Big Steak Omelette,Steak is great in eggs,0,1,11.00
+4,Hamburger,Meat frisbee ,0,2,16.99
+5,Cheese burger,Meat frisbee now with cheese,0,2,17.99
+6,Steak,Just Steak,0,3,20.00
+7,Bloody Mary,Vodka and tomato juice,1,4,1.99
