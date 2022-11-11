@@ -33,7 +33,7 @@ CREATE TABLE [Address]
              
 CREATE TABLE Restaurant
 (
-	 RestaurantID		smallint	NOT NULL	IDENTITY(1,1),
+	RestaurantID		smallint	NOT NULL	IDENTITY(1,1),
 	RestaurantName		varchar(20),
 	AddressID			smallint	NOT NULL,
 	RestaurantPhone		varchar(10)	NOT NULL,
