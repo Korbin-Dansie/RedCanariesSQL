@@ -430,6 +430,197 @@ WITH
 	ROWTERMINATOR =		'\n',
 	FIRSTROW = 2
 )
+PRINT('****************************************************************')
+
+GO
+
+/****************************************************************
+*
+*	SPROC
+*
+****************************************************************/
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	This SPROC will send a guest’s bill to the folio for their reservation if they are checked in. 
+-- =============================================
+CREATE PROCEDURE sp_SendBillToRoom 
+@GuestFirstName		varchar(20),
+@GuestLastName		varchar(20),
+@CreditCardNumber	varchar(16),
+@HotelID			smallint,
+@ReceiptID			int,
+@RoomNumber			varchar(5)
+AS
+select * from Restaurant
+GO
+
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	Create a new FOOD_ITEM with many possible ingredients and add it to a variety of restaurant menus. Use comma-separated values.
+-- =============================================
+CREATE PROCEDURE sp_AddFoodItem 
+@IngredientsList	varchar(MAX),
+@MenuList			varchar(MAX) = NULL
+AS
+GO
+
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	Given a FoodItemID, ReceiptID, and MenuID and optional Amount and OrderedAdjustments, add an entry to the ORDERED_ITEM table for this receipt.
+-- =============================================
+CREATE PROCEDURE sp_AddItem 
+@FoodItemID			smallint,
+@ReceiptID			int,
+@MenuID				int = NULL,
+@Amount				smallmoney = NULL,
+@OrderedAdjustments	varchar(MAX) = NULL
+AS
+GO
+
+/****************************************************************
+*
+*	USDF
+*
+****************************************************************/
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	Use the RestaurantID and the time of day to print the menu for that time.
+-- =============================================
+CREATE FUNCTION dbo.DisplayMenu()
+RETURNS @ProduceMenu TABLE ( MenuInformation nvarchar(MAX)) 
+AS
+BEGIN
+	RETURN -- returns @ProduceMenu
+END
+GO
+
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	Given a specific restaurant, return a table of the specials for that restaurant, and what times each dish is available. Order it by the day of the week it applies and includes the 10% discounted price. The start date starts on Monday = 0.
+-- =============================================
+CREATE FUNCTION dbo.DisplaySpecials()
+RETURNS @ProduceSpecialsMenu TABLE ( MenuInformation nvarchar(MAX)) 
+AS
+BEGIN
+	RETURN -- returns @ProduceSpecialsMenu
+END
+GO
+
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	UseCreate a receipt to hand to the customer giving them a variety of information about their purchase.
+-- =============================================
+CREATE FUNCTION dbo.CreateReceipt()
+RETURNS @ProduceReceipt TABLE ( MenuInformation nvarchar(MAX)) 
+AS
+BEGIN
+	RETURN -- returns @ProduceReceipt
+END
+GO
+
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	Given a ReceiptID, return only the total cost of all OrderedItems for that Receipt as a smallmoney.
+-- =============================================
+CREATE FUNCTION dbo.ReceiptTotalAmount()
+RETURNS smallmoney 
+AS
+BEGIN
+	DECLARE @TotalAmount smallmoney = 0
+
+	RETURN  @TotalAmount
+END
+GO
+
+/****************************************************************
+*
+*	TRIGGER
+*
+****************************************************************/
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	Works like a check constraint. If the value is anything but 0 it will check with the Farms database to see if it's a valid ID. If not roll back and throw an error.
+-- =============================================
+CREATE TRIGGER tr_RestaurantHotelID
+ON Restaurant
+AFTER UPDATE, INSERT
+AS
+	SELECT * FROM deleted
+GO
+
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	When an Ordered_Item is created it checks with the Food_Item table if its age is restricted. If it is then it checks to see if the Receipt.AgeVerifed is 0. If is 0 then the age has not been verified yet so it throws an error and rolls back to prevent the food from being ordered.
+-- =============================================
+CREATE TRIGGER tr_AgeVerified 
+ON Ordered_Item
+AFTER INSERT
+AS
+	SELECT * FROM deleted
+GO
+
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	When the user updates the credit card number and the credit card type. If both are filled then add the current date and time to the ReceiptDate. If one is missing roll back the info and throw an error stating that it's missing a field.
+-- =============================================
+CREATE TRIGGER tr_ReceiptPaid
+ON Receipt
+AFTER UPDATE
+AS
+	SELECT * FROM deleted
+GO
+
+-- =============================================
+-- Author:		
+-- Create date: 2022-11-16
+-- Description:	When the user adds a new Ordered_Item it checks to see if the item is the special of the day at that restaurant. Then it replaces the current Ordered_Item price with a 10% discount. It also adds “Special of the day” to the Ordered_Item.OrderedAdjustments row.
+-- =============================================
+CREATE TRIGGER tr_SpecialOfTheDay
+ON Ordered_Item
+INSTEAD OF INSERT
+AS
+	SELECT * FROM deleted
+GO
+
+-- =============================================
+-- Author:		Korbin Dansie
+-- Create date: 2022-11-16
+-- Description:	When the user attempts to add a new Menu_Item but inputs a price of zero then we insert the price from Food_Item.FoodDefaultPrice.
+-- =============================================
+CREATE TRIGGER tr_MenuItemDefaultPrice
+ON Menu_Item
+INSTEAD OF INSERT
+AS
+	-- Find the FoodItemID and inserted price
+	DECLARE @InsertedPrice	smallmoney,
+			@FoodItemID		smallint
+	Select top 1 @InsertedPrice = MenuItemPrice, @FoodItemID = FoodItemID from inserted;
+
+	-- If inserted price is 0. Then find the default price
+	IF (@InsertedPrice = 0)
+	BEGIN
+		-- Find the default price from Food_Item
+		DECLARE @DefaultPrice smallmoney
+		SELECT TOP 1 @DefaultPrice = FoodDefaultPrice FROM Food_Item
+		WHERE
+		Food_Item.FoodItemID = @FoodItemID
+		SELECT @InsertedPrice
+
+		-- Inserted instead of
+		INSERT INTO Menu_Item ([MenuItemID],[FoodItemID],[MenuID],[MenuItemPrice])
+		SELECT [MenuItemID],[FoodItemID],[MenuID],@DefaultPrice
+		FROM inserted
+	END
 GO
 
 /****************************************************************
