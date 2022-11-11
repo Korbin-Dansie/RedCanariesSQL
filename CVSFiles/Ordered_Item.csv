@@ -1,9 +1,9 @@
-﻿OrderedItemID,FoodItemID,ReceiptID,OrderedAdjustments,OrderedPrice,OrderedItemQty
-1,1,1,No syrup,12.99,1
-2,2,1,,10.00,2
-3,3,1,,11.00,1
-4,1,2,Extra Butter,10.00,1
-5,4,3,,16.99,1
-6,6,3,,20.00,1
-7,7,3,,1.99,2
-8,6,4,,20.00,1
+﻿OrderedItemID|FoodItemID|ReceiptID|OrderedAdjustments|OrderedPrice|OrderedItemQty
+1|1|1|No syrup|12.99|1
+2|2|1||10.00|2
+3|3|1||11.00|1
+4|1|2|Extra Butter|10.00|1
+5|4|3||16.99|1
+6|6|3||20.00|1
+7|7|3||1.99|2
+8|6|4||20.00|1

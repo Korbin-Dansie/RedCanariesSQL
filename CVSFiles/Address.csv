@@ -1,5 +1,5 @@
-﻿RestaurantID,RestaurantName,AddressID,RestaurantPhone,HotelID
-1,The First,1,8018765309,2100
-2,Downtown Salt Lake,2,8013640286,0
-3,Sugarhouse,3,13853221140,0
-4,Ogden Suites,4,8019305114,2300
+﻿AddressID|AddrLine1|AddrLine2|AddrCity|AddrState|AddrPostalCode|AddrCountry
+1|101 Prospector Avenue||Park City|UT|84060|USA
+2|35 E Broadway||Salt Lake City|UT|84111|USA
+3|1201 Wilmington Ave|#101|Salt Lake City|UT|84106|USA
+4|2401 Harrison Blvd||Ogden|UT|84408|USA

@@ -1,6 +1,6 @@
-﻿FoodCategoryID,CategoryName
-1,Breakfast
-2,Lunch
-3,Dinner
-4,Drinks
-5,Dessert
+﻿FoodCategoryID|CategoryName
+1|Breakfast
+2|Lunch
+3|Dinner
+4|Drinks
+5|Dessert

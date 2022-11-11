@@ -1,4 +1,4 @@
-﻿DiscountID,DiscountDescription,DiscountExpiration,DiscountRules,DiscountAmount,DiscountPercent
-1,None,9999-12-31,Nothing,0.00,00.00
-2,$5 Dollars off pancakes,2022-12-31,Must purchase pancakes,5.00,00.00
-3,Steak Monday. Take 10% off steak,2022-12-31,Must purchase steak,0.00,10.00
+﻿DiscountID|DiscountDescription|DiscountExpiration|DiscountRules|DiscountAmount|DiscountPercent
+1|None|9999-12-31|Nothing|0.00|00.00
+2|$5 Dollars off pancakes|2022-12-31|Must purchase pancakes|5.00|00.00
+3|Steak Monday. Take 10% off steak|2022-12-31|Must purchase steak|0.00|10.00
