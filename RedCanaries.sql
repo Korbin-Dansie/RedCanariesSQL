@@ -452,7 +452,7 @@ CREATE PROCEDURE sp_SendBillToRoom
 @ReceiptID			int,
 @RoomNumber			varchar(5)
 AS
-select * from Restaurant
+	DECLARE @NOTHING int
 GO
 
 -- =============================================
@@ -464,6 +464,7 @@ CREATE PROCEDURE sp_AddFoodItem
 @IngredientsList	varchar(MAX),
 @MenuList			varchar(MAX) = NULL
 AS
+	DECLARE @NOTHING int
 GO
 
 -- =============================================
@@ -478,6 +479,7 @@ CREATE PROCEDURE sp_AddItem
 @Amount				smallmoney = NULL,
 @OrderedAdjustments	varchar(MAX) = NULL
 AS
+	DECLARE @NOTHING int
 GO
 
 /****************************************************************
@@ -553,7 +555,7 @@ CREATE TRIGGER tr_RestaurantHotelID
 ON Restaurant
 AFTER UPDATE, INSERT
 AS
-	SELECT * FROM deleted
+	DECLARE @NOTHING int
 GO
 
 -- =============================================
@@ -565,7 +567,7 @@ CREATE TRIGGER tr_AgeVerified
 ON Ordered_Item
 AFTER INSERT
 AS
-	SELECT * FROM deleted
+	DECLARE @NOTHING int
 GO
 
 -- =============================================
@@ -577,11 +579,11 @@ CREATE TRIGGER tr_ReceiptPaid
 ON Receipt
 AFTER UPDATE
 AS
-	SELECT * FROM deleted
+	DECLARE @NOTHING int
 GO
 
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	When the user adds a new Ordered_Item it checks to see if the item is the special of the day at that restaurant. Then it replaces the current Ordered_Item price with a 10% discount. It also adds “Special of the day” to the Ordered_Item.OrderedAdjustments row.
 -- =============================================
@@ -598,7 +600,12 @@ AS
 	FROM inserted
 	INNER JOIN Receipt
 	ON inserted.ReceiptID = Receipt.ReceiptID
-	
+
+	-- DATEPART(WEEKDAY, DATETIME) assumes Sunday = 1, Saturday = 7.  When we need Monday = 0, Sunday = 6
+	SET @DayOfWeek = CASE
+		WHEN @DayOfWeek = 1 THEN 6
+		ELSE @DayOfWeek - 2
+	END	
 
 	-- See if food item is the special of the day
 	IF EXISTS 
@@ -611,10 +618,15 @@ AS
 	)
 	BEGIN
 		INSERT INTO Ordered_Item 
-		([OrderedItemID],[FoodItemID],[ReceiptID],[OrderedAdjustments],[OrderedPrice],[OrderedItemQty])
-		SELECT [OrderedItemID],[FoodItemID],[ReceiptID],CONCAT([OrderedAdjustments], 'Special of the day\n'),[OrderedPrice] * (0.90),[OrderedItemQty] 
+		([FoodItemID],[ReceiptID],[OrderedAdjustments],[OrderedPrice],[OrderedItemQty])
+		SELECT [FoodItemID],[ReceiptID],CONCAT([OrderedAdjustments], 'Special of the day.  '),[OrderedPrice] * (0.90),[OrderedItemQty] 
 		FROM
 		inserted
+	END
+	ELSE
+	BEGIN
+		INSERT INTO Ordered_Item ([FoodItemID],[ReceiptID],[OrderedAdjustments],[OrderedPrice],[OrderedItemQty])
+		SELECT [FoodItemID],[ReceiptID],[OrderedAdjustments],[OrderedPrice],[OrderedItemQty] FROM inserted
 	END
 
 GO
@@ -641,13 +653,53 @@ AS
 		SELECT TOP 1 @DefaultPrice = FoodDefaultPrice FROM Food_Item
 		WHERE
 		Food_Item.FoodItemID = @FoodItemID
-		SELECT @InsertedPrice
 
 		-- Inserted instead of
-		INSERT INTO Menu_Item ([MenuItemID],[FoodItemID],[MenuID],[MenuItemPrice])
-		SELECT [MenuItemID],[FoodItemID],[MenuID],@DefaultPrice
+		INSERT INTO Menu_Item ([FoodItemID],[MenuID],[MenuItemPrice])
+		SELECT [FoodItemID],[MenuID],@DefaultPrice
 		FROM inserted
 	END
+GO
+
+/****************************************************************
+*
+*	Problems
+*
+****************************************************************/
+PRINT('')
+PRINT('Problem 1 - Add a new food item to a menu - To test trigger SpecialOfTheDay')
+PRINT('adding pancakes (1) to the breakfast menu (1)')
+
+INSERT INTO Menu_Item ([FoodItemID],[MenuID],[MenuItemPrice])
+VALUES (8,1,0)
+
+SELECT Food_Item.FoodName, Menu_Item.MenuItemPrice FROM Menu_Item
+INNER JOIN Food_Item
+ON Menu_Item.FoodItemID = Food_Item.FoodItemID
+WHERE 
+Menu_Item.MenuID = 1
+
+
+PRINT('****************************************************************')
+GO
+
+PRINT('')
+PRINT('Problem 2 - Add the special of the day - To test trigger MenuItemDefaultPrice')
+PRINT('adding water (8) to the receipt (5)')
+
+INSERT INTO Ordered_Item ([FoodItemID],[ReceiptID],[OrderedPrice])
+VALUES (1,5,10.00)
+GO
+
+-- SELECT * FROM Ordered_Item
+SELECT Food_Item.FoodName, Ordered_Item.OrderedPrice, Ordered_Item.OrderedAdjustments FROM Receipt
+INNER JOIN Ordered_Item
+ON Receipt.ReceiptID = Ordered_Item.ReceiptID
+INNER JOIN Food_Item
+ON Ordered_Item.FoodItemID = Food_Item.FoodItemID
+WHERE Receipt.ReceiptID = 5
+
+PRINT('****************************************************************')
 GO
 
 /****************************************************************
