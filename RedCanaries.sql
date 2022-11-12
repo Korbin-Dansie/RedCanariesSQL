@@ -496,6 +496,72 @@ CREATE FUNCTION dbo.DisplayMenu(@RestaurantID smallint, @Time time = NULL)
 RETURNS @ProduceMenu TABLE ( MenuInformation nvarchar(MAX)) 
 AS
 BEGIN
+	-- See if time is supplied
+	IF (@Time is NULL)
+	BEGIN
+		SET @Time = CONVERT(TIME, GETDATE())
+	END
+
+	INSERT INTO @ProduceMenu VALUES (@TIME)
+
+	-- Display Restaurant info, RestaurantName, Address, and Phone number
+
+	---- Check if Restaurant exits, If not return error
+	IF NOT EXISTS (SELECT * FROM Restaurant WHERE Restaurant.RestaurantID = @RestaurantID)
+	BEGIN
+		DECLARE @ErrorMessage nvarchar(MAX)
+		SET @ErrorMessage = CONCAT('A Restaurant with an id of ''', @RestaurantID, ''' does not exist')
+		
+		DELETE FROM @ProduceMenu
+		INSERT INTO @ProduceMenu VALUES (@ErrorMessage)
+		RETURN
+	END
+
+	DECLARE 
+			@RestaurantPhone	varchar(10),
+			@AddrLine1			varchar(30),
+			@AddrLine2			varchar(10),
+			@AddrCity			varchar(20),
+			@AddrState			char(2) = NULL,
+			@AddrPostalCode		char(10)
+
+	SELECT @RestaurantPhone = R.RestaurantPhone, @AddrLine1 = A.AddrLine1, @AddrLine2 = A.AddrLine2, @AddrCity = A.AddrCity, @AddrState = A.AddrState, @AddrPostalCode = A.AddrPostalCode FROM Restaurant AS R
+	INNER JOIN Address AS A
+	ON R.AddressID = A.AddressID
+
+
+
+	INSERT INTO @ProduceMenu VALUES
+	('Red Canaries'),(''),
+	(CONCAT(@AddrLine1,' ',@AddrLine2)),
+	(CONCAT(@AddrCity,', ', 
+	CASE 
+		WHEN @AddrState IS NOT NULL THEN CONCAT(@AddrState,' ')
+		ELSE ''
+	END,
+	@AddrPostalCode
+	))
+	,('')
+
+	-- Display the Menu info, name, time its avaiable
+	DECLARE	
+		@MenuName		varchar(20),
+		@MenuStartTime	time,
+		@MenuEndTime	time
+	
+	SELECT TOP 1 @MenuName = M.MenuName, @MenuStartTime = M.MenuStartTime, @MenuEndTime = M.MenuEndTime FROM Menu AS M
+	WHERE
+	M.RestaurantID = @RestaurantID AND
+	@Time between m.MenuStartTime and m.MenuEndTime
+
+	INSERT INTO @ProduceMenu VALUES
+	(@MenuName),(''),
+	(CONCAT(@MenuStartTime,' - ', @MenuEndTime))
+
+	-- Cursor through the menu items orginzed by Food Category
+
+
+	
 	RETURN -- returns @ProduceMenu
 END
 GO
@@ -701,6 +767,13 @@ WHERE Receipt.ReceiptID = 5
 
 PRINT('****************************************************************')
 GO
+
+
+PRINT('')
+PRINT('Problem 3 - Display the breakfast menu - To test USDF DisplayMenu')
+
+SELECT * FROM dbo.DisplayMenu(1, '7:00:00')
+
 
 /****************************************************************
 *
