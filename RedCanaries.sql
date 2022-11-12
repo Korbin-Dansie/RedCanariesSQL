@@ -1,6 +1,6 @@
--- Assignment:	Project Phase 1
+-- Assignment:	Project Phase 3
 -- Authors:		Briella Rutherford, Korbin Dansie
--- Date:		11/9/2022
+-- Date:		11/16/2022
 
 USE master
 	IF EXISTS (SELECT * FROM sysdatabases WHERE name='RedCanaries_CS3550')
@@ -490,7 +490,7 @@ GO
 -- Create date: 2022-11-16
 -- Description:	Use the RestaurantID and the time of day to print the menu for that time.
 -- =============================================
-CREATE FUNCTION dbo.DisplayMenu()
+CREATE FUNCTION dbo.DisplayMenu(@RestaurantID smallint, @Time time = NULL)
 RETURNS @ProduceMenu TABLE ( MenuInformation nvarchar(MAX)) 
 AS
 BEGIN
@@ -503,7 +503,7 @@ GO
 -- Create date: 2022-11-16
 -- Description:	Given a specific restaurant, return a table of the specials for that restaurant, and what times each dish is available. Order it by the day of the week it applies and includes the 10% discounted price. The start date starts on Monday = 0.
 -- =============================================
-CREATE FUNCTION dbo.DisplaySpecials()
+CREATE FUNCTION dbo.DisplaySpecials(@RestaurantID smallint)
 RETURNS @ProduceSpecialsMenu TABLE ( MenuInformation nvarchar(MAX)) 
 AS
 BEGIN
@@ -516,7 +516,7 @@ GO
 -- Create date: 2022-11-16
 -- Description:	UseCreate a receipt to hand to the customer giving them a variety of information about their purchase.
 -- =============================================
-CREATE FUNCTION dbo.CreateReceipt()
+CREATE FUNCTION dbo.CreateReceipt(@ReceiptID int)
 RETURNS @ProduceReceipt TABLE ( MenuInformation nvarchar(MAX)) 
 AS
 BEGIN
@@ -529,7 +529,7 @@ GO
 -- Create date: 2022-11-16
 -- Description:	Given a ReceiptID, return only the total cost of all OrderedItems for that Receipt as a smallmoney.
 -- =============================================
-CREATE FUNCTION dbo.ReceiptTotalAmount()
+CREATE FUNCTION dbo.ReceiptTotalAmount(@ReceiptID int)
 RETURNS smallmoney 
 AS
 BEGIN
@@ -589,7 +589,34 @@ CREATE TRIGGER tr_SpecialOfTheDay
 ON Ordered_Item
 INSTEAD OF INSERT
 AS
-	SELECT * FROM deleted
+	DECLARE @FoodItemID		smallint,
+			@RestaurantID	smallint,
+			@DayOfWeek		tinyint,
+			@isSpecial		bit
+
+	SELECT TOP 1 @FoodItemID = inserted.FoodItemID, @RestaurantID = Receipt.RestaurantID, @DayOfWeek = DATEPART(WEEKDAY, Receipt.ReceiptDate)
+	FROM inserted
+	INNER JOIN Receipt
+	ON inserted.ReceiptID = Receipt.ReceiptID
+	
+
+	-- See if food item is the special of the day
+	IF EXISTS 
+	(
+		SELECT * FROM Special
+		WHERE
+		Special.FoodItemID = @FoodItemID AND
+		Special.RestaurantID = @RestaurantID AND
+		Special.SpecialWeekDay = @DayOfWeek
+	)
+	BEGIN
+		INSERT INTO Ordered_Item 
+		([OrderedItemID],[FoodItemID],[ReceiptID],[OrderedAdjustments],[OrderedPrice],[OrderedItemQty])
+		SELECT [OrderedItemID],[FoodItemID],[ReceiptID],CONCAT([OrderedAdjustments], 'Special of the day\n'),[OrderedPrice] * (0.90),[OrderedItemQty] 
+		FROM
+		inserted
+	END
+
 GO
 
 -- =============================================
