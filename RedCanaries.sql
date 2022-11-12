@@ -488,7 +488,7 @@ GO
 *
 ****************************************************************/
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Use the RestaurantID and the time of day to print the menu for that time.
 -- =============================================
