@@ -729,6 +729,7 @@ GO
 
 
 -- =============================================
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Given a specific restaurant, return a table of the specials for that restaurant, and what times each dish is available. Order it by the day of the week it applies and includes the 10% discounted price. The start date starts on Monday = 0.
 -- =============================================
