@@ -864,7 +864,11 @@ END
 GO
 
 -- =============================================
+<<<<<<< Updated upstream
 -- Author:		
+=======
+-- Author:		Korbin Dansie
+>>>>>>> Stashed changes
 -- Create date: 2022-11-16
 -- Description:	UseCreate a receipt to hand to the customer giving them a variety of information about their purchase.
 -- =============================================
