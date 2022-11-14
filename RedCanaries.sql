@@ -729,7 +729,6 @@ GO
 
 
 -- =============================================
--- Author:		
 -- Create date: 2022-11-16
 -- Description:	Given a specific restaurant, return a table of the specials for that restaurant, and what times each dish is available. Order it by the day of the week it applies and includes the 10% discounted price. The start date starts on Monday = 0.
 -- =============================================
@@ -737,6 +736,128 @@ CREATE FUNCTION dbo.DisplaySpecials(@RestaurantID smallint)
 RETURNS @ProduceSpecialsMenu TABLE ( MenuInformation nvarchar(MAX)) 
 AS
 BEGIN
+
+	DECLARE @ErrorMessage nvarchar(MAX)
+
+	-- Test to see if Restaurant exits
+	IF NOT EXISTS (SELECT * FROM Restaurant WHERE Restaurant.RestaurantID = @RestaurantID)
+	BEGIN
+		SET @ErrorMessage = CONCAT('A Restaurant with an id of ''', @RestaurantID, ''' does not exist')
+		
+		DELETE FROM @ProduceSpecialsMenu
+		INSERT INTO @ProduceSpecialsMenu VALUES (@ErrorMessage)
+		RETURN
+	END
+
+	-- Test to see if Restaurant has specails
+	IF NOT EXISTS (SELECT * FROM Special WHERE Special.RestaurantID = @RestaurantID)
+	BEGIN
+		SET @ErrorMessage = ('No Specials')
+		
+		DELETE FROM @ProduceSpecialsMenu
+		INSERT INTO @ProduceSpecialsMenu VALUES (@ErrorMessage)
+		RETURN
+	END
+
+	-- For each special see if it appers on one or more menus
+	---- DayOfWeek, MenuStartTime, MenuEndTime, FoodName, FoodPrice, 
+	DECLARE
+		@DayOFWeek		tinyint,
+		@MenuStartTime	time,
+		@MenuEndTime	time,
+		@FoodName		varchar(30),
+		@FoodPrice		smallmoney
+
+	---- Get the longest character length of each item used for spacing in cursor
+	DECLARE 
+		@MaxLengthFoodName	tinyint,
+		@MaxLengthFoodPrice	tinyint
+
+	SELECT	@MaxLengthFoodName	= MAX(LEN(FI.FoodName)),
+			@MaxLengthFoodPrice	= MAX(LEN(FORMAT(MI.MenuItemPrice * 0.90, 'C')))	
+	FROM Restaurant AS R
+		INNER JOIN Special AS S
+		ON R.RestaurantID = S.RestaurantID
+		INNER JOIN Menu AS M
+		ON R.RestaurantID = M.RestaurantID
+		INNER JOIN Menu_Item AS MI
+		ON M.MenuID = MI.MenuID
+		INNER JOIN Food_Item AS FI
+		ON MI.FoodItemID = FI.FoodItemID
+	WHERE
+		R.RestaurantID = @RestaurantID AND
+		S.FoodItemID IN (MI.FoodItemID)
+
+	-- Start the cursor
+	DECLARE cursor_SpecailMenu	CURSOR
+	FOR SELECT
+		S.SpecialWeekDay, M.MenuStartTime, M.MenuEndTime, FI.FoodName, MI.MenuItemPrice
+	FROM Restaurant AS R
+		INNER JOIN Special AS S
+		ON R.RestaurantID = S.RestaurantID
+		INNER JOIN Menu AS M
+		ON R.RestaurantID = M.RestaurantID
+		INNER JOIN Menu_Item AS MI
+		ON M.MenuID = MI.MenuID
+		INNER JOIN Food_Item AS FI
+		ON MI.FoodItemID = FI.FoodItemID
+	WHERE
+		R.RestaurantID = @RestaurantID AND
+		S.FoodItemID IN (MI.FoodItemID)
+	ORDER BY
+		S.SpecialWeekDay, M.MenuStartTime
+
+	OPEN cursor_SpecailMenu
+
+	FETCH NEXT FROM cursor_SpecailMenu INTO
+		@DayOFWeek		,
+		@MenuStartTime	,
+		@MenuEndTime	,
+		@FoodName		,
+		@FoodPrice		
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		--INSERT INTO @ProduceSpecialsMenu VALUES
+		--(
+		--	CONCAT
+		--	(
+		--	@DayOFWeek, ' ', @MenuStartTime, ' ', @MenuEndTime, ' ', @FoodName, ' ',@FoodPrice
+		--	)
+		--)
+
+		INSERT INTO @ProduceSpecialsMenu VALUES
+		(
+		CONCAT
+		(
+			DATENAME(WEEKDAY, @DayOFWeek),
+			' ',
+			CONVERT(varchar(15), @MenuStartTime, 100),
+			' - ',
+			CONVERT(varchar(15), @MenuEndTime, 100)
+		)
+		),
+		(
+		CONCAT
+			(
+			@FoodName,
+			' ',
+			REPLICATE('.', @MaxLengthFoodName + 3 - LEN(@FoodName)),
+			REPLICATE(' ', @MaxLengthFoodPrice - LEN(FORMAT(@FoodPrice * 0.90, 'C'))/*Formated Food price length*/),
+			' ',
+			FORMAT(@FoodPrice * 0.90, 'C')
+			)
+		),
+		('')
+
+		FETCH NEXT FROM cursor_SpecailMenu INTO
+		@DayOFWeek		,
+		@MenuStartTime	,
+		@MenuEndTime	,
+		@FoodName		,
+		@FoodPrice		
+	END
+
 	RETURN -- returns @ProduceSpecialsMenu
 END
 GO
@@ -952,6 +1073,17 @@ SELECT * FROM dbo.DisplayMenu(1, '7:00:00')
 
 PRINT('****************************************************************')
 GO
+
+PRINT('')
+PRINT('Problem 4 - Display the specail menu - To test USDF DisplaySpecials')
+PRINT('Restaurant (1) has a specail everday')
+
+
+SELECT * FROM dbo.DisplaySpecials(1)
+
+PRINT('********************************')
+PRINT('Problem 4B - Display the specail menu or Restaurant 3 with split menus')
+SELECT * FROM dbo.DisplaySpecials(3)
 
 
 
