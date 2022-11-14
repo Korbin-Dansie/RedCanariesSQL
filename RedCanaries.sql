@@ -865,19 +865,21 @@ GO
 
 -- =============================================
 -- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	UseCreate a receipt to hand to the customer giving them a variety of information about their purchase.
 -- =============================================
 CREATE FUNCTION dbo.CreateReceipt(@ReceiptID int)
-RETURNS @ProduceReceipt TABLE ( MenuInformation nvarchar(MAX)) 
+RETURNS @ProduceReceipt TABLE ( ReceiptInformation nvarchar(MAX)) 
 AS
 BEGIN
+
 	RETURN -- returns @ProduceReceipt
 END
 GO
 
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Given a ReceiptID, return only the total cost of all OrderedItems for that Receipt as a smallmoney.
 -- =============================================
@@ -1086,7 +1088,13 @@ PRINT('********************************')
 PRINT('Problem 4B - Display the specail menu or Restaurant 3 with split menus')
 SELECT * FROM dbo.DisplaySpecials(3)
 
+PRINT('****************************************************************')
+GO
 
+PRINT('')
+PRINT('Problem 5 - Display the receipt - To test USDF CreateReceipt')
+PRINT('Restaurant (1) has a specail everday')
+SELECT * FROM dbo.CreateReceipt(1)
 
 /****************************************************************
 *
