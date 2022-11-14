@@ -551,7 +551,7 @@ GO
 *
 ****************************************************************/
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Use the RestaurantID and the time of day to print the menu for that time.
 -- =============================================
@@ -559,9 +559,174 @@ CREATE FUNCTION dbo.DisplayMenu(@RestaurantID smallint, @Time time = NULL)
 RETURNS @ProduceMenu TABLE ( MenuInformation nvarchar(MAX)) 
 AS
 BEGIN
+	-- See if time is supplied
+	IF (@Time is NULL)
+	BEGIN
+		SET @Time = CONVERT(TIME, GETDATE())
+	END
+
+	-- Display Restaurant info, RestaurantName, Address, and Phone number
+
+	---- Check if Restaurant exits, If not return error
+	IF NOT EXISTS (SELECT * FROM Restaurant WHERE Restaurant.RestaurantID = @RestaurantID)
+	BEGIN
+		DECLARE @ErrorMessage nvarchar(MAX)
+		SET @ErrorMessage = CONCAT('A Restaurant with an id of ''', @RestaurantID, ''' does not exist')
+		
+		DELETE FROM @ProduceMenu
+		INSERT INTO @ProduceMenu VALUES (@ErrorMessage)
+		RETURN
+	END
+
+	DECLARE 
+			@RestaurantPhone	varchar(10),
+			@AddrLine1			varchar(30),
+			@AddrLine2			varchar(10),
+			@AddrCity			varchar(20),
+			@AddrState			char(2) = NULL,
+			@AddrPostalCode		char(10)
+
+	SELECT @RestaurantPhone = R.RestaurantPhone, @AddrLine1 = A.AddrLine1, @AddrLine2 = A.AddrLine2, @AddrCity = A.AddrCity, @AddrState = A.AddrState, @AddrPostalCode = A.AddrPostalCode FROM Restaurant AS R
+	INNER JOIN Address AS A
+	ON R.AddressID = A.AddressID
+
+
+
+	INSERT INTO @ProduceMenu VALUES
+	('Red Canaries'),(''),
+	(CONCAT(@AddrLine1,' ',@AddrLine2)),
+	(CONCAT(@AddrCity,', ', 
+	CASE 
+		WHEN @AddrState IS NOT NULL THEN CONCAT(@AddrState,' ')
+		ELSE ''
+	END,
+	@AddrPostalCode
+	))
+	,('')
+
+	-- Display the Menu info, name, time its avaiable
+	DECLARE
+		@MenuID			int, -- Used latter to loop thought the menu
+		@MenuName		varchar(20),
+		@MenuStartTime	time,
+		@MenuEndTime	time
+	
+	SELECT TOP 1 @MenuID = M.MenuID, @MenuName = M.MenuName, @MenuStartTime = M.MenuStartTime, @MenuEndTime = M.MenuEndTime FROM Menu AS M
+	WHERE
+	M.RestaurantID = @RestaurantID AND
+	@Time between m.MenuStartTime and m.MenuEndTime
+
+	INSERT INTO @ProduceMenu VALUES
+	(@MenuName),
+	
+	(CONCAT(CONVERT(varchar(15), @MenuStartTime, 100),' - ', CONVERT(varchar(15), @MenuEndTime, 100) ))
+
+	-- Cursor through the menu items orginzed by Food Category
+	DECLARE 
+		@FoodCategoryName			varchar(20),
+		@FoodName					varchar(30),
+		@FoodPrice					smallmoney,
+		@FoodDescription			varchar(MAX),
+		@PreviousFoodCategoryName	varchar(20) = '' -- Used to see when Food category changes in the cursor
+
+	---- Get the longest character length of each item used for spacing in cursor
+	DECLARE 
+		@MaxLengthFoodName	tinyint,
+		@MaxLengthFoodPrice	tinyint
+
+	SELECT	@MaxLengthFoodName	= MAX(LEN(FI.FoodName)),
+			@MaxLengthFoodPrice	= MAX(LEN(FORMAT(MI.MenuItemPrice, 'C')))	
+	FROM Menu AS M
+	INNER JOIN Menu_Item AS MI
+	ON M.MenuID = MI.MenuID
+	INNER JOIN Food_Item AS FI
+	ON MI.FoodItemID = FI.FoodItemID
+	WHERE
+		M.MenuID = @MenuID
+
+	---- Declare Cursor
+	DECLARE cursor_MenuItems CURSOR
+
+	FOR SELECT
+		FC.CategoryName, FI.FoodName, MI.MenuItemPrice, FI.FoodDescription
+	FROM Menu AS M
+		INNER JOIN Menu_Item AS MI
+		ON M.MenuID = MI.MenuID
+		INNER JOIN Food_Item AS FI
+		ON MI.FoodItemID = FI.FoodItemID
+		INNER JOIN Food_Category AS FC
+		ON FI.FoodCategoryID = FC.FoodCategoryID
+	WHERE
+		M.MenuID = @MenuID
+	ORDER BY 
+		FC.FoodCategoryID, FI.FoodItemID
+
+	OPEN cursor_MenuItems
+
+	FETCH NEXT FROM cursor_MenuItems INTO
+		@FoodCategoryName,
+		@FoodName,
+		@FoodPrice,
+		@FoodDescription
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		IF (@FoodCategoryName != @PreviousFoodCategoryName)
+		BEGIN
+			SET @PreviousFoodCategoryName = @FoodCategoryName -- Set PreviousFoodCategoryName so we know we started on a new category
+			
+			DECLARE @longestFoodNameAndPrice tinyint;
+			SET @longestFoodNameAndPrice = @MaxLengthFoodName + 5 + @MaxLengthFoodPrice
+
+			INSERT INTO @ProduceMenu VALUES
+			(''),
+			(
+				CONCAT
+				(
+				REPLICATE('-', (@longestFoodNameAndPrice - LEN(@FoodCategoryName)) / 2),
+				@FoodCategoryName,
+				REPLICATE('-', (@longestFoodNameAndPrice - LEN(@FoodCategoryName)) / 2),
+				(
+					CASE
+					WHEN ((@longestFoodNameAndPrice - LEN(@FoodCategoryName) / 2) % 2) = 0 THEN '-'
+					ELSE ''
+					END
+				) 
+				)
+			),
+			('')
+		END
+
+		INSERT INTO @ProduceMenu VALUES 
+		(
+			-- FoodName...$price
+			CONCAT
+			(
+			@FoodName,
+			' ',
+			REPLICATE('.', @MaxLengthFoodName + 3 - LEN(@FoodName)),
+			REPLICATE(' ', @MaxLengthFoodPrice - LEN(FORMAT(@FoodPrice, 'C'))/*Formated Food price length*/),
+			' ',
+			FORMAT(@FoodPrice, 'C')
+			)
+		),
+		(@FoodDescription),
+		('')
+
+		FETCH NEXT FROM cursor_MenuItems INTO
+			@FoodCategoryName,
+			@FoodName,
+			@FoodPrice,
+			@FoodDescription
+	END
+	
+	CLOSE cursor_MenuItems
+	DEALLOCATE cursor_MenuItems
+
 	RETURN -- returns @ProduceMenu
 END
 GO
+
 
 -- =============================================
 -- Author:		
@@ -765,6 +930,7 @@ WHERE Receipt.ReceiptID = 5
 PRINT('****************************************************************')
 GO
 
+<<<<<<< HEAD
 PRINT('')
 PRINT('Problem 3 - Send a bill to a reservation - To test SPROC sp_SendBillToRoom')
 -- PRINT('adding water (8) to the receipt (5)')
@@ -790,6 +956,15 @@ PRINT (@OpenQuery + @Command + ''')')
 PRINT('****************************************************************')
 GO
 
+=======
+
+PRINT('')
+PRINT('Problem 3 - Display the breakfast menu - To test USDF DisplayMenu')
+
+SELECT * FROM dbo.DisplayMenu(1, '7:00:00')
+
+
+>>>>>>> main
 /****************************************************************
 *
 *	Delete Tables when done
