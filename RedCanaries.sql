@@ -12,7 +12,7 @@ USE master
 		@server = N'FARMS',
 		@srvproduct = N'SQLSERVER', 
 		@provider = N'SQLNCLI',
-		@datasrc = N'LAPTOP-5AR7P28S\SQLEXPRESS',
+		@datasrc = N'LAPTOP-5AR7P28S\SQLEXPRESS', -- DESKTOP-EVA or LAPTOP-5AR7P28S
 		@catalog = N'FARMS'
 
 	Exec sp_serveroption N'FARMS', 'data access', 'true'
@@ -895,7 +895,7 @@ GO
 *
 ****************************************************************/
 PRINT('')
-PRINT('Problem 1 - Add a new food item to a menu - To test SPROC sp_SendBillToRoom')
+PRINT('Problem 1 - Add a new food item to a menu - To test trigger sp_SendBillToRoom')
 PRINT('adding pancakes (1) to the breakfast menu (1)')
 
 INSERT INTO Menu_Item ([FoodItemID],[MenuID],[MenuItemPrice])
@@ -930,7 +930,6 @@ WHERE Receipt.ReceiptID = 5
 PRINT('****************************************************************')
 GO
 
-<<<<<<< HEAD
 PRINT('')
 PRINT('Problem 3 - Send a bill to a reservation - To test SPROC sp_SendBillToRoom')
 -- PRINT('adding water (8) to the receipt (5)')
@@ -943,28 +942,19 @@ EXEC sp_SendBillToRoom
 @ReceiptID = 4,
 @RoomNumber = '202'
 
+PRINT('****************************************************************')
+GO
 
-DECLARE @GuestID smallint = 1500
-DECLARE @GuestFirstName varchar(20)	= 'Anita'
-DECLARE @GuestLastName varchar(20)	= 'Proul'
-DECLARE @Command varchar(MAX) = CONCAT(N'SELECT GuestID FROM GUEST WHERE GuestID = ', @GuestID, ' AND GuestFirst = ','''', @GuestFirstName, '''',' AND GuestLast = ','''',@GuestLastName,'''')
-DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
+PRINT('')
+PRINT('Problem 4 - Display the breakfast menu - To test USDF DisplayMenu')
 
-PRINT (@OpenQuery + @Command + ''')')
-
+SELECT * FROM dbo.DisplayMenu(1, '7:00:00')
 
 PRINT('****************************************************************')
 GO
 
-=======
-
-PRINT('')
-PRINT('Problem 3 - Display the breakfast menu - To test USDF DisplayMenu')
-
-SELECT * FROM dbo.DisplayMenu(1, '7:00:00')
 
 
->>>>>>> main
 /****************************************************************
 *
 *	Delete Tables when done
