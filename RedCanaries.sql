@@ -503,8 +503,6 @@ BEGIN
 		SET @Time = CONVERT(TIME, GETDATE())
 	END
 
-	INSERT INTO @ProduceMenu VALUES (@TIME)
-
 	-- Display Restaurant info, RestaurantName, Address, and Phone number
 
 	---- Check if Restaurant exits, If not return error
@@ -545,27 +543,128 @@ BEGIN
 	,('')
 
 	-- Display the Menu info, name, time its avaiable
-	DECLARE	
+	DECLARE
+		@MenuID			int, -- Used latter to loop thought the menu
 		@MenuName		varchar(20),
 		@MenuStartTime	time,
 		@MenuEndTime	time
 	
-	SELECT TOP 1 @MenuName = M.MenuName, @MenuStartTime = M.MenuStartTime, @MenuEndTime = M.MenuEndTime FROM Menu AS M
+	SELECT TOP 1 @MenuID = M.MenuID, @MenuName = M.MenuName, @MenuStartTime = M.MenuStartTime, @MenuEndTime = M.MenuEndTime FROM Menu AS M
 	WHERE
 	M.RestaurantID = @RestaurantID AND
 	@Time between m.MenuStartTime and m.MenuEndTime
 
 	INSERT INTO @ProduceMenu VALUES
-	(@MenuName),(''),
-	(CONCAT(@MenuStartTime,' - ', @MenuEndTime))
+	(@MenuName),
+	
+	(CONCAT(CONVERT(varchar(15), @MenuStartTime, 100),' - ', CONVERT(varchar(15), @MenuEndTime, 100) ))
 
 	-- Cursor through the menu items orginzed by Food Category
+	DECLARE 
+		@FoodCategoryName			varchar(20),
+		@FoodName					varchar(30),
+		@FoodPrice					smallmoney,
+		@FoodDescription			varchar(MAX),
+		@PreviousFoodCategoryName	varchar(20) = '' -- Used to see when Food category changes in the cursor
 
+	---- Get the longest character length of each item used for spacing in cursor
+	DECLARE 
+		@MaxLengthFoodName	tinyint,
+		@MaxLengthFoodPrice	tinyint
 
+	SELECT	@MaxLengthFoodName	= MAX(LEN(FI.FoodName)),
+			@MaxLengthFoodPrice	= MAX(LEN(FORMAT(MI.MenuItemPrice, 'C')))	
+	FROM Menu AS M
+	INNER JOIN Menu_Item AS MI
+	ON M.MenuID = MI.MenuID
+	INNER JOIN Food_Item AS FI
+	ON MI.FoodItemID = FI.FoodItemID
+	WHERE
+		M.MenuID = @MenuID
+
+	---- Declare Cursor
+	DECLARE cursor_MenuItems CURSOR
+
+	FOR SELECT
+		FC.CategoryName, FI.FoodName, MI.MenuItemPrice, FI.FoodDescription
+	FROM Menu AS M
+		INNER JOIN Menu_Item AS MI
+		ON M.MenuID = MI.MenuID
+		INNER JOIN Food_Item AS FI
+		ON MI.FoodItemID = FI.FoodItemID
+		INNER JOIN Food_Category AS FC
+		ON FI.FoodCategoryID = FC.FoodCategoryID
+	WHERE
+		M.MenuID = @MenuID
+	ORDER BY 
+		FC.FoodCategoryID, FI.FoodItemID
+
+	OPEN cursor_MenuItems
+
+	FETCH NEXT FROM cursor_MenuItems INTO
+		@FoodCategoryName,
+		@FoodName,
+		@FoodPrice,
+		@FoodDescription
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		IF (@FoodCategoryName != @PreviousFoodCategoryName)
+		BEGIN
+			SET @PreviousFoodCategoryName = @FoodCategoryName -- Set PreviousFoodCategoryName so we know we started on a new category
+			
+			DECLARE @longestFoodNameAndPrice tinyint;
+			SET @longestFoodNameAndPrice = @MaxLengthFoodName + 5 + @MaxLengthFoodPrice
+
+			INSERT INTO @ProduceMenu VALUES
+			(''),
+			(
+				CONCAT
+				(
+				REPLICATE('-', (@longestFoodNameAndPrice - LEN(@FoodCategoryName)) / 2),
+				@FoodCategoryName,
+				REPLICATE('-', (@longestFoodNameAndPrice - LEN(@FoodCategoryName)) / 2),
+				(
+					CASE
+					WHEN ((@longestFoodNameAndPrice - LEN(@FoodCategoryName) / 2) % 2) = 0 THEN '-'
+					ELSE ''
+					END
+				) 
+				)
+			),
+			('')
+		END
+
+		INSERT INTO @ProduceMenu VALUES 
+		(
+			-- FoodName...$price
+			CONCAT
+			(
+			@FoodName,
+			' ',
+			REPLICATE('.', @MaxLengthFoodName + 3 - LEN(@FoodName)),
+			REPLICATE(' ', @MaxLengthFoodPrice - LEN(FORMAT(@FoodPrice, 'C'))/*Formated Food price length*/),
+			' ',
+			FORMAT(@FoodPrice, 'C')
+			)
+		),
+		(@FoodDescription),
+		('')
+
+		FETCH NEXT FROM cursor_MenuItems INTO
+			@FoodCategoryName,
+			@FoodName,
+			@FoodPrice,
+			@FoodDescription
+	END
 	
+	CLOSE cursor_MenuItems
+	DEALLOCATE cursor_MenuItems
+
 	RETURN -- returns @ProduceMenu
 END
 GO
+
 
 -- =============================================
 -- Author:		
