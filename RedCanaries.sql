@@ -12,10 +12,6 @@ USE master
 		@server = N'FARMS',
 		@srvproduct = N'SQLSERVER', 
 		@provider = N'SQLNCLI',
-<<<<<<< Updated upstream
-		@datasrc = N'FARMS',
-		@catalog = N'Master'
-=======
 		@datasrc = N'LAPTOP-5AR7P28S\SQLEXPRESS',
 		@catalog = N'FARMS'
 
@@ -26,7 +22,6 @@ USE master
 
 	Exec sp_addlinkedsrvlogin 'FARMS', 'true'
 
->>>>>>> Stashed changes
 
 
 GO
@@ -478,12 +473,6 @@ CREATE PROCEDURE sp_SendBillToRoom
 @RoomNumber			varchar(5)
 AS
 	-- Query CreditCard to get the record matching the given credit card, keep GuestID and CreditCardID
-<<<<<<< Updated upstream
-	
-	DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
-	DECLARE @Command Nvarchar(100)
-	SET @Command = N'SELECT GuestID, CreditCardID FROM = FARMS.CreditCard WHERE CreditCardNumber = '+@CreditCardNumber
-=======
 
 	--DECLARE @Table TABLE (GuestID smallint, CreditCardID smallint, CCNumber varchar(16)) 
 	--INSERT INTO @Table SELECT * FROM OPENQUERY(FARMS, 'SELECT GuestID, CreditCardID, CCNumber FROM CreditCard') WHERE CCNumber = @CreditCardNumber
@@ -492,21 +481,11 @@ AS
 	DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
 	DECLARE @Command Nvarchar(MAX)
 	SET @Command = N'SELECT GuestID, CreditCardID FROM CreditCard WHERE CCNumber = '+@CreditCardNumber
->>>>>>> Stashed changes
 
 	DECLARE @GuestTable TABLE (GuestID smallint, CreditCardID smallint) 
 	INSERT INTO @GuestTable EXEC (@OpenQuery + @Command + ''')') 
 	DECLARE @GuestID smallint = (SELECT GuestID FROM @GuestTable)
 	DECLARE @CreditCardID smallint = (SELECT CreditCardID FROM @GuestTable)
-<<<<<<< Updated upstream
-/*
-	-- Use given GuestIDs to query FARMS GUEST and find guests whose name match what was given
-
-	SET @Command = N'SELECT GuestID, CreditCardID FROM FARMS.GUEST WHERE GuestID = '+@GuestID+' AND GuestFirst = '+@GuestFirstName+' AND GuestLast = '+@GuestLastName
-	DECLARE @MatchesTable TABLE (GuestID smallint, CreditCardID smallint) 
-	INSERT INTO @MatchesTable EXEC (@OpenQuery + @Command + ')') 
-
-=======
 
 	-- Use given GuestIDs to query FARMS GUEST and find guests whose name match what was given
 
@@ -517,7 +496,6 @@ AS
 	DECLARE @MatchesTable TABLE (GuestID smallint) 
 	INSERT INTO @MatchesTable EXEC (@OpenQuery + @Command + ''')') 
 /*
->>>>>>> Stashed changes
 	-- IF there is no match, throw an error that there is no matching guest and end the procedure
 	
 	IF(NOT EXISTS (SELECT 1 FROM @MatchesTable)) 
@@ -793,7 +771,6 @@ GO
 PRINT('')
 PRINT('Problem 3 - Send a bill to a reservation - To test SPROC sp_SendBillToRoom')
 -- PRINT('adding water (8) to the receipt (5)')
-<<<<<<< Updated upstream
 
 EXEC sp_SendBillToRoom 
 @GuestFirstName	= 'Anita',
@@ -803,19 +780,6 @@ EXEC sp_SendBillToRoom
 @ReceiptID = 4,
 @RoomNumber = '202'
 
-=======
-
-EXEC sp_SendBillToRoom 
-@GuestFirstName	= 'Anita',
-@GuestLastName = 'Proul',
-@CreditCardNumber = '8887776665551110',
-@HotelID = 2100,
-@ReceiptID = 4,
-@RoomNumber = '202'
->>>>>>> Stashed changes
-
-PRINT('****************************************************************')
-GO
 
 DECLARE @GuestID smallint = 1500
 DECLARE @GuestFirstName varchar(20)	= 'Anita'
