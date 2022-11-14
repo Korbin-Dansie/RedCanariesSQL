@@ -489,13 +489,10 @@ AS
 
 	-- Use given GuestIDs to query FARMS GUEST and find guests whose name match what was given
 
-	--SET @Command = CONCAT(N'SELECT GuestID FROM GUEST WHERE GuestID = ', @GuestID, ' AND GuestFirst = ','''', @GuestFirstName, '''',' AND GuestLast = ','''',@GuestLastName,'''')
-	--SET @Command = CONCAT('SELECT GuestID FROM GUEST WHERE GuestID = ', @GuestID, ' AND GuestFirst = ''Anita''')
-	SET @Command = 'SELECT GuestID FROM GUEST WHERE GuestID = 1500 AND GuestFirst = ''' + @GuestFirstName+''''
-
+	SET @Command = CONCAT(N'SELECT GuestID FROM GUEST WHERE GuestID = ', @GuestID, ' AND GuestFirst = ''''', @GuestFirstName, ''''' AND GuestLast = ''''',@GuestLastName,'''''')
 	DECLARE @MatchesTable TABLE (GuestID smallint) 
 	INSERT INTO @MatchesTable EXEC (@OpenQuery + @Command + ''')') 
-/*
+
 	-- IF there is no match, throw an error that there is no matching guest and end the procedure
 	
 	IF(NOT EXISTS (SELECT 1 FROM @MatchesTable)) 
@@ -504,9 +501,9 @@ AS
 	-- Use the CreditCardID to query the FARMS RESERVATION table to find reservations under that credit card which are active
 	-- Store the potential ReservationID’s.
 
-	SET @Command = N'SELECT ReservationID FROM FARMS.RESERVATION WHERE CreditCardID = '+@CreditCardID+' AND ReservationStatus = A'
+	SET @Command = CONCAT(N'SELECT ReservationID FROM RESERVATION WHERE CreditCardID = ',@CreditCardID,' AND ReservationStatus = ''''A''''')
 	DECLARE @ReservationsTable TABLE (ReservationID smallint) 
-	INSERT INTO @ReservationsTable EXEC (@OpenQuery + @Command + ')') 
+	INSERT INTO @ReservationsTable EXEC (@OpenQuery + @Command + ''')') 
 
 	-- IF there is no match, throw an error that there is no active reservation and end the procedure.
 
@@ -515,10 +512,10 @@ AS
 
 	-- Use ReservationID to query FARMS Folio and JOIN with ROOM table to use Room's HotelId and find ones that match the hotel
 
-	SET @Command = N'SELECT FolioID FROM FARMS.Folio JOIN FARMS.Room ON Folio.RoomID = Room.RoomID WHERE Room.HotelID = '+@HotelID
+	SET @Command = CONCAT(N'SELECT FolioID FROM Folio JOIN Room ON Folio.RoomID = Room.RoomID WHERE Room.HotelID = ',@HotelID)
 	DECLARE @RoomsTable TABLE (ReservationID smallint) 
-	INSERT INTO @ReservationsTable EXEC (@OpenQuery + @Command + ')') 
-*/
+	INSERT INTO @ReservationsTable EXEC (@OpenQuery + @Command + ''')') 
+
 GO
 
 -- =============================================
@@ -784,8 +781,10 @@ EXEC sp_SendBillToRoom
 DECLARE @GuestID smallint = 1500
 DECLARE @GuestFirstName varchar(20)	= 'Anita'
 DECLARE @GuestLastName varchar(20)	= 'Proul'
-DECLARE @ToPrint varchar(MAX) = CONCAT(N'SELECT GuestID FROM GUEST WHERE GuestID = ', @GuestID, ' AND GuestFirst = ','''', @GuestFirstName, '''',' AND GuestLast = ','''',@GuestLastName,'''')
-PRINT @ToPrint
+DECLARE @Command varchar(MAX) = CONCAT(N'SELECT GuestID FROM GUEST WHERE GuestID = ', @GuestID, ' AND GuestFirst = ','''', @GuestFirstName, '''',' AND GuestLast = ','''',@GuestLastName,'''')
+DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
+
+PRINT (@OpenQuery + @Command + ''')')
 
 
 PRINT('****************************************************************')
