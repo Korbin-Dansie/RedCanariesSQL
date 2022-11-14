@@ -302,7 +302,7 @@ GO
 ****************************************************************/
 PRINT('ADD Address')
 BULK INSERT [Address]
-FROM 'C:\Stage_RedCannaries\Address.csv'
+FROM 'C:\Stage_RedCanaries\Address.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -313,7 +313,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Restaurant')
 BULK INSERT Restaurant
-FROM 'C:\Stage_RedCannaries\Restaurant.csv'
+FROM 'C:\Stage_RedCanaries\Restaurant.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -324,7 +324,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Menu')
 BULK INSERT Menu
-FROM 'C:\Stage_RedCannaries\Menu.csv'
+FROM 'C:\Stage_RedCanaries\Menu.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -335,7 +335,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Menu_Item')
 BULK INSERT Menu_Item
-FROM 'C:\Stage_RedCannaries\Menu_Item.csv'
+FROM 'C:\Stage_RedCanaries\Menu_Item.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -346,7 +346,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Food_Item')
 BULK INSERT Food_Item
-FROM 'C:\Stage_RedCannaries\Food_Item.csv'
+FROM 'C:\Stage_RedCanaries\Food_Item.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -357,7 +357,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Food_Category')
 BULK INSERT Food_Category
-FROM 'C:\Stage_RedCannaries\Food_Category.csv'
+FROM 'C:\Stage_RedCanaries\Food_Category.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -368,7 +368,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Recipe')
 BULK INSERT Recipe
-FROM 'C:\Stage_RedCannaries\Recipe.csv'
+FROM 'C:\Stage_RedCanaries\Recipe.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -379,7 +379,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Ingredient')
 BULK INSERT Ingredient
-FROM 'C:\Stage_RedCannaries\Ingredient.csv'
+FROM 'C:\Stage_RedCanaries\Ingredient.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -390,7 +390,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Ordered_Item')
 BULK INSERT Ordered_Item
-FROM 'C:\Stage_RedCannaries\Ordered_Item.csv'
+FROM 'C:\Stage_RedCanaries\Ordered_Item.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -401,7 +401,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Receipt')
 BULK INSERT Receipt
-FROM 'C:\Stage_RedCannaries\Receipt.csv'
+FROM 'C:\Stage_RedCanaries\Receipt.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -412,7 +412,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Discount')
 BULK INSERT Discount
-FROM 'C:\Stage_RedCannaries\Discount.csv'
+FROM 'C:\Stage_RedCanaries\Discount.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -423,7 +423,7 @@ WITH
 PRINT('****************************************************************')
 PRINT('ADD Special')
 BULK INSERT Special
-FROM 'C:\Stage_RedCannaries\Special.csv'
+FROM 'C:\Stage_RedCanaries\Special.csv'
 WITH
 (
 	FIELDTERMINATOR =	'|',
@@ -452,7 +452,8 @@ CREATE PROCEDURE sp_SendBillToRoom
 @ReceiptID			int,
 @RoomNumber			varchar(5)
 AS
-	DECLARE @NOTHING int
+	PRINT 'sp_SendBillToRoom'
+	SELECT * FROM OPENQUERY (LOCALSERVER, 'SELECT GuestID, CreditCardID FROM RUTHERFORD_FARMS.CreditCard WHERE CreditCardNumber == @CreditCardNumber') AS PASSTHROUGH
 GO
 
 -- =============================================
