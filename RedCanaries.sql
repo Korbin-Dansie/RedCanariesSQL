@@ -5,6 +5,17 @@
 USE master
 	IF EXISTS (SELECT * FROM sysdatabases WHERE name='RedCanaries_CS3550')
 	DROP DATABASE RedCanaries_CS3550
+
+	EXEC sp_dropserver 'FARMS', 'droplogins'
+
+	EXEC sp_addlinkedserver
+		@server = N'FARMS',
+		@srvproduct = N'SQLSERVER', 
+		@provider = N'SQLNCLI',
+		@datasrc = N'FARMS',
+		@catalog = N'Master'
+
+
 GO
 
 CREATE DATABASE RedCanaries_CS3550
@@ -443,6 +454,7 @@ GO
 -- Author:		
 -- Create date: 2022-11-16
 -- Description:	This SPROC will send a guest’s bill to the folio for their reservation if they are checked in. 
+-- UNTESTED =====================================================================================
 -- =============================================
 CREATE PROCEDURE sp_SendBillToRoom 
 @GuestFirstName		varchar(20),
@@ -452,8 +464,46 @@ CREATE PROCEDURE sp_SendBillToRoom
 @ReceiptID			int,
 @RoomNumber			varchar(5)
 AS
-	PRINT 'sp_SendBillToRoom'
-	SELECT * FROM OPENQUERY (LOCALSERVER, 'SELECT GuestID, CreditCardID FROM RUTHERFORD_FARMS.CreditCard WHERE CreditCardNumber == @CreditCardNumber') AS PASSTHROUGH
+	-- Query CreditCard to get the record matching the given credit card, keep GuestID and CreditCardID
+	
+	DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
+	DECLARE @Command Nvarchar(100)
+	SET @Command = N'SELECT GuestID, CreditCardID FROM = FARMS.CreditCard WHERE CreditCardNumber = '+@CreditCardNumber
+
+	DECLARE @GuestTable TABLE (GuestID smallint, CreditCardID smallint) 
+	INSERT INTO @GuestTable EXEC (@OpenQuery + @Command + ''')') 
+	DECLARE @GuestID smallint = (SELECT GuestID FROM @GuestTable)
+	DECLARE @CreditCardID smallint = (SELECT CreditCardID FROM @GuestTable)
+/*
+	-- Use given GuestIDs to query FARMS GUEST and find guests whose name match what was given
+
+	SET @Command = N'SELECT GuestID, CreditCardID FROM FARMS.GUEST WHERE GuestID = '+@GuestID+' AND GuestFirst = '+@GuestFirstName+' AND GuestLast = '+@GuestLastName
+	DECLARE @MatchesTable TABLE (GuestID smallint, CreditCardID smallint) 
+	INSERT INTO @MatchesTable EXEC (@OpenQuery + @Command + ')') 
+
+	-- IF there is no match, throw an error that there is no matching guest and end the procedure
+	
+	IF(NOT EXISTS (SELECT 1 FROM @MatchesTable)) 
+		RAISERROR('NoMatchingGuests',16,10)
+
+	-- Use the CreditCardID to query the FARMS RESERVATION table to find reservations under that credit card which are active
+	-- Store the potential ReservationID’s.
+
+	SET @Command = N'SELECT ReservationID FROM FARMS.RESERVATION WHERE CreditCardID = '+@CreditCardID+' AND ReservationStatus = A'
+	DECLARE @ReservationsTable TABLE (ReservationID smallint) 
+	INSERT INTO @ReservationsTable EXEC (@OpenQuery + @Command + ')') 
+
+	-- IF there is no match, throw an error that there is no active reservation and end the procedure.
+
+	IF(NOT EXISTS (SELECT 1 FROM @ReservationsTable)) 
+		RAISERROR('NoElegibleReservations',16,10)
+
+	-- Use ReservationID to query FARMS Folio and JOIN with ROOM table to use Room's HotelId and find ones that match the hotel
+
+	SET @Command = N'SELECT FolioID FROM FARMS.Folio JOIN FARMS.Room ON Folio.RoomID = Room.RoomID WHERE Room.HotelID = '+@HotelID
+	DECLARE @RoomsTable TABLE (ReservationID smallint) 
+	INSERT INTO @ReservationsTable EXEC (@OpenQuery + @Command + ')') 
+*/
 GO
 
 -- =============================================
@@ -668,7 +718,7 @@ GO
 *
 ****************************************************************/
 PRINT('')
-PRINT('Problem 1 - Add a new food item to a menu - To test trigger SpecialOfTheDay')
+PRINT('Problem 1 - Add a new food item to a menu - To test SPROC sp_SendBillToRoom')
 PRINT('adding pancakes (1) to the breakfast menu (1)')
 
 INSERT INTO Menu_Item ([FoodItemID],[MenuID],[MenuItemPrice])
@@ -699,6 +749,22 @@ ON Receipt.ReceiptID = Ordered_Item.ReceiptID
 INNER JOIN Food_Item
 ON Ordered_Item.FoodItemID = Food_Item.FoodItemID
 WHERE Receipt.ReceiptID = 5
+
+PRINT('****************************************************************')
+GO
+
+PRINT('')
+PRINT('Problem 3 - Send a bill to a reservation - To test SPROC sp_SendBillToRoom')
+-- PRINT('adding water (8) to the receipt (5)')
+
+EXEC sp_SendBillToRoom 
+@GuestFirstName	= 'Anita',
+@GuestLastName = 'Proul',
+@CreditCardNumber = '8887776665551110',
+@HotelID = 2100,
+@ReceiptID = 4,
+@RoomNumber = '202'
+
 
 PRINT('****************************************************************')
 GO
