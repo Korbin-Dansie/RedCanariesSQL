@@ -1051,9 +1051,6 @@ BEGIN
 	('--------------------')
 
 	-- Display the Ordered items info
-	DECLARE @SubTotalAmount smallmoney = 0,
-			@ItemCount		int        = 0
-
 	---- Get the max values to format latter
 	DECLARE
 		@MaxFoodQty		int,
@@ -1128,11 +1125,7 @@ BEGIN
 			@FoodAdjustments
 			),
 			('')
-		END
-		
-		------ Add the current food price to the subtotal
-		SELECT @SubTotalAmount += @FoodPrice, @ItemCount += @FoodQty
-			
+		END			
 
 		FETCH NEXT FROM cursor_orderedItem INTO
 			@FoodQty			,
@@ -1144,7 +1137,19 @@ BEGIN
 	CLOSE cursor_orderedItem
 	DEALLOCATE cursor_orderedItem
 
-	-- Display the subtotal
+	-- Display the total amounts
+	DECLARE 
+		@SubTotalAmount smallmoney = 0,
+		@DiscountAmount	smallmoney = 0,
+		@TotalAmount	smallmoney = 0,
+		@ItemCount		tinyint
+	---- Run dbo.ReceiptTotalAmount(@ReceiptID int) to find values
+	SELECT 
+		@SubTotalAmount = RTA.SubTotal,
+		@DiscountAmount = RTA.DiscountAmount,
+		@TotalAmount = RTA.TotalAmount,
+		@ItemCount = RTA.ItemCount 
+	FROM dbo.ReceiptTotalAmount(@ReceiptID) AS RTA
 
 	---- If subtotal is NULL then no items ordered
 	IF @ItemCount = 0
@@ -1152,35 +1157,56 @@ BEGIN
 		INSERT INTO @ProduceReceipt VALUES ('No items ordered '), (FORMAT(@SubTotalAmount, 'C'))
 		RETURN
 	END
-	ELSE
+
+	INSERT INTO @ProduceReceipt VALUES 
+	(
+	CONCAT
+	(
+		'Items: ',
+		/*Longest length of ordered item plus spaces minus character for Items: (7) and subtoal price*/
+		REPLICATE(' ',@MaxFoodQty + 1 + @MaxFoodName + 1 + @MaxFoodPrice - 7 - LEN(@ItemCount) ),
+		@ItemCount
+		)
+	)
+
+	
+	INSERT INTO @ProduceReceipt VALUES 
+	(
+	CONCAT
+	(
+		'Subtotal: ',
+		/*Longest length of ordered item plus spaces minus character for Subtotal: (10) and subtoal price*/
+		REPLICATE(' ',@MaxFoodQty + 1 + @MaxFoodName + 1 + @MaxFoodPrice - 10 - LEN(FORMAT(@SubTotalAmount, 'C'))),
+		FORMAT(@SubTotalAmount, 'C')
+		)
+	)
+	
+	IF @DiscountAmount != 0
 	BEGIN
 		INSERT INTO @ProduceReceipt VALUES 
 		(
 		CONCAT
-		(
-			'Subtotal: ',
-			/*Longest length of ordered item plus spaces minus character for Subtotal: (10) and subtoal price*/
-			REPLICATE(' ',@MaxFoodQty + 1 + @MaxFoodName + 1 + @MaxFoodPrice - 10 - LEN(FORMAT(@SubTotalAmount, 'C'))),
-			FORMAT(@SubTotalAmount, 'C')
+			(
+			'Discount: ',
+			/*Longest length of ordered item plus spaces minus character for Discount: (10) and  - (1) subtoal price*/
+			REPLICATE(' ',@MaxFoodQty + 1 + @MaxFoodName + 1 + @MaxFoodPrice - 11 - LEN(FORMAT(@DiscountAmount, 'C'))),
+			'-',
+			FORMAT(@DiscountAmount, 'C')
 			)
 		)
 	END
-
-	-- Display the tax if applicable
-
+	
 	-- Display total
-			INSERT INTO @ProduceReceipt VALUES 
+	INSERT INTO @ProduceReceipt VALUES 
+	(
+	CONCAT
 		(
-		CONCAT
-		(
-			'Total: ',
-			/*Longest length of ordered item plus spaces minus character for Total: (7) and subtoal price*/
-			REPLICATE(' ',@MaxFoodQty + 1 + @MaxFoodName + 1 + @MaxFoodPrice - 7 - LEN(FORMAT(@SubTotalAmount, 'C'))),
-			FORMAT(@SubTotalAmount, 'C')
-			)
+		'Total: ',
+		/*Longest length of ordered item plus spaces minus character for Total: (7) and subtoal price*/
+		REPLICATE(' ',@MaxFoodQty + 1 + @MaxFoodName + 1 + @MaxFoodPrice - 7 - LEN(FORMAT(@TotalAmount, 'C'))),
+		FORMAT(@TotalAmount, 'C')
 		)
-
-
+	)
 	-- Add the footer of the receipt
 
 	RETURN -- returns @ProduceReceipt
@@ -1259,12 +1285,11 @@ BEGIN
 
 
 	-- Add it all up for total
-	SET @DiscountAmount = @DiscountAmount * -1
 	INSERT INTO @ReceiptAmounts VALUES
 	(	
 		@SubTotal		,
 		@DiscountAmount	,
-		@SubTotal + @DiscountAmount	,
+		@SubTotal - @DiscountAmount	,
 		@ItemCount
 	)
 
@@ -1584,8 +1609,6 @@ SELECT * FROM Ordered_Item WHERE ReceiptID = 3
 @OrderedAdjustments	varchar(MAX) = NULL
 */
 GO
-
-
 
 /****************************************************************
 *
