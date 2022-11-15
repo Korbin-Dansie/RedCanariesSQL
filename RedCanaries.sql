@@ -12,7 +12,7 @@ USE master
 		@server = N'FARMS',
 		@srvproduct = N'SQLSERVER', 
 		@provider = N'SQLNCLI',
-		@datasrc = N'LAPTOP-5AR7P28S\SQLEXPRESS',
+		@datasrc = N'LAPTOP-5AR7P28S\SQLEXPRESS', -- DESKTOP-EVA or LAPTOP-5AR7P28S
 		@catalog = N'FARMS'
 
 	EXEC sp_serveroption N'FARMS', 'data access', 'true'
@@ -465,10 +465,9 @@ GO
 *
 ****************************************************************/
 -- =============================================
--- Author:		
+-- Author:		Briella Rutherford
 -- Create date: 2022-11-16
--- Description:	This SPROC will send a guest’s bill to the folio for their reservation if they are checked in. 
--- UNTESTED =====================================================================================
+-- Description:	This SPROC will send a guest's bill to the folio for their reservation if they are checked in. 
 -- =============================================
 CREATE PROCEDURE sp_SendBillToRoom 
 @GuestFirstName		varchar(20),
@@ -491,9 +490,10 @@ AS
 	-- IF there are too many elegible guests, throw an error
 
 	IF((SELECT COUNT(*) FROM @GuestTable) > 1) 
-		BEGIN
-			DECLARE @GuestError varchar(50) = CONCAT('TooManyGuests: ',(SELECT COUNT(*) FROM @GuestTable))
-			RAISERROR(@GuestError,16,10)
+	BEGIN
+		DECLARE @GuestError varchar(50) = CONCAT('TooManyGuests: ',(SELECT COUNT(*) FROM @GuestTable))
+		RAISERROR(@GuestError,16,10)
+		RETURN -1
 	END
 
 	DECLARE @GuestID smallint = (SELECT GuestID FROM @GuestTable)
@@ -508,10 +508,13 @@ AS
 	-- IF there is no match, throw an error that there is no matching guest and end the procedure
 	
 	IF(NOT EXISTS (SELECT 1 FROM @MatchesTable)) 
+	BEGIN
 		RAISERROR('NoMatchingGuests',16,10)
+		RETURN -1
+	END
 
 	-- Use the CreditCardID to query the FARMS RESERVATION table to find reservations under that credit card which are active
-	-- Store the potential ReservationID’s.
+	-- Store the potential ReservationIDï¿½s.
 
 	SET @Command = CONCAT(N'SELECT ReservationID FROM RESERVATION WHERE CreditCardID = ',@CreditCardID,' AND ReservationStatus = ''''A''''')
 	DECLARE @ReservationsTable TABLE (ReservationID smallint) 
@@ -519,8 +522,11 @@ AS
 
 	-- IF there is no match, throw an error that there is no active reservation and end the procedure.
 	
-	IF(NOT EXISTS (SELECT 1 FROM @ReservationsTable)) 
+	IF(NOT EXISTS (SELECT 1 FROM @ReservationsTable))
+	BEGIN
 		RAISERROR('NoElegibleReservations',16,10)
+		RETURN -1
+	END
 
 	-- Use ReservationID to query FARMS Folio and JOIN with ROOM table to use Room's HotelId and find ones that match the hotel
 	
@@ -539,14 +545,18 @@ AS
 	-- IF there is no match, throw an error that all reservations are at the wrong hotel and end the procedure
 	
 	IF(NOT EXISTS (SELECT 1 FROM @MatchingFolios)) 
+	BEGIN
 		RAISERROR('ReservationsAtWrongHotel',16,10)
+		RETURN -1
+	END
 
 	-- IF there are multiple folios at this point throw an error that there are multiple qualifying reservations.
 
 	IF((SELECT COUNT(*) FROM @MatchingFolios) > 1) 
-		BEGIN
-			DECLARE @ResError varchar(50) = CONCAT('TooManyReservations: ',(SELECT COUNT(FolioID) FROM @MatchingFolios))
-			RAISERROR(@ResError,16,10)
+	BEGIN
+		DECLARE @ResError varchar(50) = CONCAT('TooManyReservations: ',(SELECT COUNT(FolioID) FROM @MatchingFolios))
+		RAISERROR(@ResError,16,10)
+		RETURN -1
 	END
 	
 	-- There should only be one Folio left
@@ -607,7 +617,43 @@ CREATE PROCEDURE sp_AddItem
 @Amount				smallmoney = NULL,
 @OrderedAdjustments	varchar(MAX) = NULL
 AS
-	DECLARE @NOTHING int
+	-- IF Amount is not entered, set it to 1
+
+	IF (@Amount IS NULL) SET @Amount = 1
+
+	-- Query the ORDERED_ITEM table to find if there is already an entry matching the ReceiptID. 
+	
+	DECLARE @ItemTable TABLE (OrderedItemID int, OrderedItemQty tinyint, OrderedAdjustments varchar(MAX))
+	INSERT INTO @ItemTable SELECT OrderedItemID, OrderedItemQty, OrderedAdjustments FROM Ordered_Item WHERE FoodItemID = @FoodItemID AND ReceiptID = @ReceiptID
+
+	-- IF there is, add our Amount variable to OrderedItemQty for that entry, and concatenate the given OrderedAdjustments.
+	
+	IF((SELECT COUNT(*) FROM @ItemTable) > 0) 
+	BEGIN
+		DECLARE @ID int = (SELECT TOP 1 OrderedItemID FROM @ItemTable)
+		DECLARE @OldQty tinyint = (SELECT TOP 1 OrderedItemQty FROM @ItemTable)
+		DECLARE @OldAdj varchar(MAX) = (SELECT TOP 1 OrderedAdjustments FROM @ItemTable)
+		IF (@OrderedAdjustments IS NOT NULL) UPDATE Ordered_Item SET OrderedAdjustments = CONCAT(@OldAdj, ' ', @OrderedAdjustments) WHERE OrderedItemID = @ID
+		UPDATE Ordered_Item SET OrderedItemQty = (@OldQty + @Amount) WHERE OrderedItemID = @ID
+		RETURN
+	END
+	
+	-- ELSE IF MenuID is null, throw an error that the menu could not be found, and end the procedure. 
+	
+	IF (@MenuID IS NULL)
+	BEGIN
+		RAISERROR('Menu could not be found',16,10)
+		RETURN -1
+	END
+		
+	-- Query the MENU_ITEM table with the given FoodItemID  and MenuID to find the appropriate MenuItemPrice
+		
+	DECLARE @OrderedPrice smallmoney = (SELECT MenuItemPrice FROM Menu_Item WHERE FoodItemID = @FoodItemID AND MenuID = @MenuID)
+
+	-- Create a new entry for the ORDERED_ITEM table, using the given FoodItemID, ReceiptID, Amount, OrderedAdjustments (leave null if not given), 
+	-- the MenuItemPrice obtained above for the OrderedPrice, and the Amount given as the OrderedItemQty.
+	INSERT INTO Ordered_Item VALUES (@FoodItemID, @ReceiptID, @OrderedAdjustments, @OrderedPrice, @Amount)
+
 GO
 
 /****************************************************************
@@ -616,7 +662,7 @@ GO
 *
 ****************************************************************/
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Use the RestaurantID and the time of day to print the menu for that time.
 -- =============================================
@@ -624,12 +670,177 @@ CREATE FUNCTION dbo.DisplayMenu(@RestaurantID smallint, @Time time = NULL)
 RETURNS @ProduceMenu TABLE ( MenuInformation nvarchar(MAX)) 
 AS
 BEGIN
+	-- See if time is supplied
+	IF (@Time is NULL)
+	BEGIN
+		SET @Time = CONVERT(TIME, GETDATE())
+	END
+
+	-- Display Restaurant info, RestaurantName, Address, and Phone number
+
+	---- Check if Restaurant exits, If not return error
+	IF NOT EXISTS (SELECT * FROM Restaurant WHERE Restaurant.RestaurantID = @RestaurantID)
+	BEGIN
+		DECLARE @ErrorMessage nvarchar(MAX)
+		SET @ErrorMessage = CONCAT('A Restaurant with an id of ''', @RestaurantID, ''' does not exist')
+		
+		DELETE FROM @ProduceMenu
+		INSERT INTO @ProduceMenu VALUES (@ErrorMessage)
+		RETURN
+	END
+
+	DECLARE 
+			@RestaurantPhone	varchar(10),
+			@AddrLine1			varchar(30),
+			@AddrLine2			varchar(10),
+			@AddrCity			varchar(20),
+			@AddrState			char(2) = NULL,
+			@AddrPostalCode		char(10)
+
+	SELECT @RestaurantPhone = R.RestaurantPhone, @AddrLine1 = A.AddrLine1, @AddrLine2 = A.AddrLine2, @AddrCity = A.AddrCity, @AddrState = A.AddrState, @AddrPostalCode = A.AddrPostalCode FROM Restaurant AS R
+	INNER JOIN Address AS A
+	ON R.AddressID = A.AddressID
+
+
+
+	INSERT INTO @ProduceMenu VALUES
+	('Red Canaries'),(''),
+	(CONCAT(@AddrLine1,' ',@AddrLine2)),
+	(CONCAT(@AddrCity,', ', 
+	CASE 
+		WHEN @AddrState IS NOT NULL THEN CONCAT(@AddrState,' ')
+		ELSE ''
+	END,
+	@AddrPostalCode
+	))
+	,('')
+
+	-- Display the Menu info, name, time its avaiable
+	DECLARE
+		@MenuID			int, -- Used latter to loop thought the menu
+		@MenuName		varchar(20),
+		@MenuStartTime	time,
+		@MenuEndTime	time
+	
+	SELECT TOP 1 @MenuID = M.MenuID, @MenuName = M.MenuName, @MenuStartTime = M.MenuStartTime, @MenuEndTime = M.MenuEndTime FROM Menu AS M
+	WHERE
+	M.RestaurantID = @RestaurantID AND
+	@Time between m.MenuStartTime and m.MenuEndTime
+
+	INSERT INTO @ProduceMenu VALUES
+	(@MenuName),
+	
+	(CONCAT(CONVERT(varchar(15), @MenuStartTime, 100),' - ', CONVERT(varchar(15), @MenuEndTime, 100) ))
+
+	-- Cursor through the menu items orginzed by Food Category
+	DECLARE 
+		@FoodCategoryName			varchar(20),
+		@FoodName					varchar(30),
+		@FoodPrice					smallmoney,
+		@FoodDescription			varchar(MAX),
+		@PreviousFoodCategoryName	varchar(20) = '' -- Used to see when Food category changes in the cursor
+
+	---- Get the longest character length of each item used for spacing in cursor
+	DECLARE 
+		@MaxLengthFoodName	tinyint,
+		@MaxLengthFoodPrice	tinyint
+
+	SELECT	@MaxLengthFoodName	= MAX(LEN(FI.FoodName)),
+			@MaxLengthFoodPrice	= MAX(LEN(FORMAT(MI.MenuItemPrice, 'C')))	
+	FROM Menu AS M
+	INNER JOIN Menu_Item AS MI
+	ON M.MenuID = MI.MenuID
+	INNER JOIN Food_Item AS FI
+	ON MI.FoodItemID = FI.FoodItemID
+	WHERE
+		M.MenuID = @MenuID
+
+	---- Declare Cursor
+	DECLARE cursor_MenuItems CURSOR
+
+	FOR SELECT
+		FC.CategoryName, FI.FoodName, MI.MenuItemPrice, FI.FoodDescription
+	FROM Menu AS M
+		INNER JOIN Menu_Item AS MI
+		ON M.MenuID = MI.MenuID
+		INNER JOIN Food_Item AS FI
+		ON MI.FoodItemID = FI.FoodItemID
+		INNER JOIN Food_Category AS FC
+		ON FI.FoodCategoryID = FC.FoodCategoryID
+	WHERE
+		M.MenuID = @MenuID
+	ORDER BY 
+		FC.FoodCategoryID, FI.FoodItemID
+
+	OPEN cursor_MenuItems
+
+	FETCH NEXT FROM cursor_MenuItems INTO
+		@FoodCategoryName,
+		@FoodName,
+		@FoodPrice,
+		@FoodDescription
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		IF (@FoodCategoryName != @PreviousFoodCategoryName)
+		BEGIN
+			SET @PreviousFoodCategoryName = @FoodCategoryName -- Set PreviousFoodCategoryName so we know we started on a new category
+			
+			DECLARE @longestFoodNameAndPrice tinyint;
+			SET @longestFoodNameAndPrice = @MaxLengthFoodName + 5 + @MaxLengthFoodPrice
+
+			INSERT INTO @ProduceMenu VALUES
+			(''),
+			(
+				CONCAT
+				(
+				REPLICATE('-', (@longestFoodNameAndPrice - LEN(@FoodCategoryName)) / 2),
+				@FoodCategoryName,
+				REPLICATE('-', (@longestFoodNameAndPrice - LEN(@FoodCategoryName)) / 2),
+				(
+					CASE
+					WHEN ((@longestFoodNameAndPrice - LEN(@FoodCategoryName) / 2) % 2) = 0 THEN '-'
+					ELSE ''
+					END
+				) 
+				)
+			),
+			('')
+		END
+
+		INSERT INTO @ProduceMenu VALUES 
+		(
+			-- FoodName...$price
+			CONCAT
+			(
+			@FoodName,
+			' ',
+			REPLICATE('.', @MaxLengthFoodName + 3 /* for a min of ... on the longet name */ - LEN(@FoodName)),
+			REPLICATE(' ', @MaxLengthFoodPrice - LEN(FORMAT(@FoodPrice, 'C'))/*Formated Food price length*/),
+			' ',
+			FORMAT(@FoodPrice, 'C')
+			)
+		),
+		(@FoodDescription),
+		('')
+
+		FETCH NEXT FROM cursor_MenuItems INTO
+			@FoodCategoryName,
+			@FoodName,
+			@FoodPrice,
+			@FoodDescription
+	END
+	
+	CLOSE cursor_MenuItems
+	DEALLOCATE cursor_MenuItems
+
 	RETURN -- returns @ProduceMenu
 END
 GO
 
+
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Given a specific restaurant, return a table of the specials for that restaurant, and what times each dish is available. Order it by the day of the week it applies and includes the 10% discounted price. The start date starts on Monday = 0.
 -- =============================================
@@ -637,37 +848,423 @@ CREATE FUNCTION dbo.DisplaySpecials(@RestaurantID smallint)
 RETURNS @ProduceSpecialsMenu TABLE ( MenuInformation nvarchar(MAX)) 
 AS
 BEGIN
+
+	DECLARE @ErrorMessage nvarchar(MAX)
+
+	-- Test to see if Restaurant exits
+	IF NOT EXISTS (SELECT * FROM Restaurant WHERE Restaurant.RestaurantID = @RestaurantID)
+	BEGIN
+		SET @ErrorMessage = CONCAT('A Restaurant with an id of ''', @RestaurantID, ''' does not exist')
+		
+		DELETE FROM @ProduceSpecialsMenu
+		INSERT INTO @ProduceSpecialsMenu VALUES (@ErrorMessage)
+		RETURN
+	END
+
+	-- Test to see if Restaurant has specails
+	IF NOT EXISTS (SELECT * FROM Special WHERE Special.RestaurantID = @RestaurantID)
+	BEGIN
+		SET @ErrorMessage = ('No Specials')
+		
+		DELETE FROM @ProduceSpecialsMenu
+		INSERT INTO @ProduceSpecialsMenu VALUES (@ErrorMessage)
+		RETURN
+	END
+
+	-- For each special see if it appers on one or more menus
+	---- DayOfWeek, MenuStartTime, MenuEndTime, FoodName, FoodPrice, 
+	DECLARE
+		@DayOFWeek		tinyint,
+		@MenuStartTime	time,
+		@MenuEndTime	time,
+		@FoodName		varchar(30),
+		@FoodPrice		smallmoney
+
+	---- Get the longest character length of each item used for spacing in cursor
+	DECLARE 
+		@MaxLengthFoodName	tinyint,
+		@MaxLengthFoodPrice	tinyint
+
+	SELECT	@MaxLengthFoodName	= MAX(LEN(FI.FoodName)),
+			@MaxLengthFoodPrice	= MAX(LEN(FORMAT(MI.MenuItemPrice * 0.90, 'C')))	
+	FROM Restaurant AS R
+		INNER JOIN Special AS S
+		ON R.RestaurantID = S.RestaurantID
+		INNER JOIN Menu AS M
+		ON R.RestaurantID = M.RestaurantID
+		INNER JOIN Menu_Item AS MI
+		ON M.MenuID = MI.MenuID
+		INNER JOIN Food_Item AS FI
+		ON MI.FoodItemID = FI.FoodItemID
+	WHERE
+		R.RestaurantID = @RestaurantID AND
+		S.FoodItemID IN (MI.FoodItemID)
+
+	-- Start the cursor
+	DECLARE cursor_SpecailMenu	CURSOR
+	FOR SELECT
+		S.SpecialWeekDay, M.MenuStartTime, M.MenuEndTime, FI.FoodName, MI.MenuItemPrice
+	FROM Restaurant AS R
+		INNER JOIN Special AS S
+		ON R.RestaurantID = S.RestaurantID
+		INNER JOIN Menu AS M
+		ON R.RestaurantID = M.RestaurantID
+		INNER JOIN Menu_Item AS MI
+		ON M.MenuID = MI.MenuID
+		INNER JOIN Food_Item AS FI
+		ON MI.FoodItemID = FI.FoodItemID
+	WHERE
+		R.RestaurantID = @RestaurantID AND
+		S.FoodItemID IN (MI.FoodItemID)
+	ORDER BY
+		S.SpecialWeekDay, M.MenuStartTime
+
+	OPEN cursor_SpecailMenu
+
+	FETCH NEXT FROM cursor_SpecailMenu INTO
+		@DayOFWeek		,
+		@MenuStartTime	,
+		@MenuEndTime	,
+		@FoodName		,
+		@FoodPrice		
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		--INSERT INTO @ProduceSpecialsMenu VALUES
+		--(
+		--	CONCAT
+		--	(
+		--	@DayOFWeek, ' ', @MenuStartTime, ' ', @MenuEndTime, ' ', @FoodName, ' ',@FoodPrice
+		--	)
+		--)
+
+		INSERT INTO @ProduceSpecialsMenu VALUES
+		(
+		CONCAT
+		(
+			DATENAME(WEEKDAY, @DayOFWeek),
+			' ',
+			CONVERT(varchar(15), @MenuStartTime, 100),
+			' - ',
+			CONVERT(varchar(15), @MenuEndTime, 100)
+		)
+		),
+		(
+		CONCAT
+			(
+			@FoodName,
+			' ',
+			REPLICATE('.', @MaxLengthFoodName + 3/* for a min of ... on the longet name */ - LEN(@FoodName)),
+			REPLICATE(' ', @MaxLengthFoodPrice - LEN(FORMAT(@FoodPrice * 0.90, 'C'))/*Formated Food price length*/),
+			' ',
+			FORMAT(@FoodPrice * 0.90, 'C')
+			)
+		),
+		('')
+
+		FETCH NEXT FROM cursor_SpecailMenu INTO
+		@DayOFWeek		,
+		@MenuStartTime	,
+		@MenuEndTime	,
+		@FoodName		,
+		@FoodPrice		
+	END
+
 	RETURN -- returns @ProduceSpecialsMenu
 END
 GO
 
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	UseCreate a receipt to hand to the customer giving them a variety of information about their purchase.
 -- =============================================
 CREATE FUNCTION dbo.CreateReceipt(@ReceiptID int)
-RETURNS @ProduceReceipt TABLE ( MenuInformation nvarchar(MAX)) 
+RETURNS @ProduceReceipt TABLE ( ReceiptInformation nvarchar(MAX)) 
 AS
 BEGIN
+	DECLARE @ErrorMessage nvarchar(MAX)
+
+	-- Test to see if Restaurant exits
+	IF NOT EXISTS (SELECT TOP 1 RCPT.RestaurantID FROM Receipt AS RCPT WHERE RCPT.ReceiptID = @ReceiptID)
+	BEGIN
+		SET @ErrorMessage = CONCAT('A Restaurant with an id of ''', @ReceiptID, ''' does not exist')
+		
+		DELETE FROM @ProduceReceipt
+		INSERT INTO @ProduceReceipt VALUES (@ErrorMessage)
+		RETURN
+	END
+
+	-- Display the restaurant information
+	---- Get the restaurant ID
+	DECLARE @RestaurantID		smallint,
+			@RestaurantPhone	varchar(10),
+			@AddrLine1			varchar(30),
+			@AddrLine2			varchar(10),
+			@AddrCity			varchar(20),
+			@AddrState			char(2) = NULL,
+			@AddrPostalCode		char(10),
+			@ReceiptDate		datetime
+
+	SELECT @RestaurantID = R.RestaurantID, @RestaurantPhone = R.RestaurantPhone, @AddrLine1 = A.AddrLine1, @AddrLine2 = A.AddrLine2, @AddrCity = A.AddrCity, @AddrState = A.AddrState, @AddrPostalCode = A.AddrPostalCode, @ReceiptDate = RCPT.ReceiptDate
+	FROM Receipt AS RCPT
+		INNER JOIN Restaurant AS R
+		ON RCPT.RestaurantID = R.RestaurantID
+		INNER JOIN Address AS A
+		ON R.AddressID = A.AddressID
+	WHERE
+		RCPT.ReceiptID = @ReceiptID
+
+	---- Display the info
+	INSERT INTO @ProduceReceipt VALUES
+	(
+	'----Red Canaries----'
+	),
+	(
+	CONCAT('Red Canaries # ', RIGHT('0000' + CONVERT(VARCHAR(4),@ReceiptID), 4))
+	)
+	,(''),
+	(CONCAT(@AddrLine1,' ',@AddrLine2)),
+	(CONCAT
+		(
+		@AddrCity,', ', 
+		CASE 
+			WHEN @AddrState IS NOT NULL THEN CONCAT(@AddrState,' ')
+			ELSE ''
+		END,
+		@AddrPostalCode
+		)
+	)
+	,
+	(
+	CONCAT
+		(
+		'Phone: ',SUBSTRING(@RestaurantPhone, 1,3), '-', SUBSTRING(@RestaurantPhone, 4,3), '-', SUBSTRING(@RestaurantPhone,7,4)
+		)
+	),
+	(
+	CONCAT
+		(
+		'Date: ', format(@ReceiptDate, 'g')
+		)
+	),
+	('--------------------')
+
+	-- Display the Ordered items info
+	DECLARE @SubTotalAmount smallmoney = 0,
+			@ItemCount		int        = 0
+
+	---- Get the max values to format latter
+	DECLARE
+		@MaxFoodQty		int,
+		@MaxFoodName	int,
+		@MaxFoodPrice	int
+
+	SELECT @MaxFoodQty = MAX(LEN(OI.OrderedItemQty)), @MaxFoodName = MAX(LEN(FI.FoodName)), @MaxFoodPrice = MAX(LEN(FORMAT(OI.OrderedPrice, 'C' )))
+	FROM Receipt AS RCPT
+		INNER JOIN Ordered_Item AS OI
+		ON RCPT.ReceiptID = OI.ReceiptID
+		INNER JOIN Food_Item AS FI
+		ON OI.FoodItemID = FI.FoodItemID
+	WHERE
+		RCPT.ReceiptID = @ReceiptID
+
+
+	---- Declare a cursor to loop through the items
+	DECLARE 
+		@FoodQty			tinyint,
+		@FoodName			varchar(30),
+		@FoodPrice			smallmoney,
+		@FoodAdjustments	varchar(MAX)
+
+
+	DECLARE cursor_orderedItem CURSOR
+
+	FOR SELECT
+		OI.OrderedItemQty, FI.FoodName, OI.OrderedPrice, OI.OrderedAdjustments
+	FROM Receipt AS RCPT
+		INNER JOIN Ordered_Item AS OI
+		ON RCPT.ReceiptID = OI.ReceiptID
+		INNER JOIN Food_Item AS FI
+		ON OI.FoodItemID = FI.FoodItemID
+	WHERE
+		RCPT.ReceiptID = @ReceiptID
+
+	OPEN cursor_orderedItem
+
+	FETCH NEXT FROM cursor_orderedItem INTO
+		@FoodQty			,
+		@FoodName			,
+		@FoodPrice			,
+		@FoodAdjustments
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		INSERT INTO @ProduceReceipt VALUES
+		(
+			CONCAT
+			(
+				REPLICATE(' ', @MaxFoodQty - LEN(@FoodQty)),
+				@FoodQty,
+				' ',
+				@FoodName,
+				' ',
+				REPLICATE(' ', @MaxFoodName - LEN(@FoodName)),
+				REPLICATE(' ', @MaxFoodPrice - LEN(FORMAT(@FoodPrice, 'C'))),
+				FORMAT(@FoodPrice, 'C'),
+				' '
+			)
+		)
+
+		------ If no food adjustments add a blank line, else dispaly the food adjustments and a blank line
+		IF @FoodAdjustments IS NULL
+		BEGIN
+			INSERT INTO @ProduceReceipt VALUES ('')
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @ProduceReceipt VALUES 
+			(
+			@FoodAdjustments
+			),
+			('')
+		END
+		
+		------ Add the current food price to the subtotal
+		SELECT @SubTotalAmount += @FoodPrice, @ItemCount += @FoodQty
+			
+
+		FETCH NEXT FROM cursor_orderedItem INTO
+			@FoodQty			,
+			@FoodName			,
+			@FoodPrice			,
+			@FoodAdjustments
+	END
+
+	CLOSE cursor_orderedItem
+	DEALLOCATE cursor_orderedItem
+
+	-- Display the subtotal
+
+	---- If subtotal is NULL then no items ordered
+	IF @ItemCount = 0
+	BEGIN
+		INSERT INTO @ProduceReceipt VALUES ('No items ordered '), (FORMAT(@SubTotalAmount, 'C'))
+		RETURN
+	END
+	ELSE
+	BEGIN
+		INSERT INTO @ProduceReceipt VALUES 
+		(
+		CONCAT
+		(
+			'Subtotal: ',
+			/*Longest length of ordered item plus spaces minus character for Subtotal: (10) and subtoal price*/
+			REPLICATE(' ',@MaxFoodQty + 1 + @MaxFoodName + 1 + @MaxFoodPrice - 10 - LEN(FORMAT(@SubTotalAmount, 'C'))),
+			FORMAT(@SubTotalAmount, 'C')
+			)
+		)
+	END
+
+	-- Display the tax if applicable
+
+	-- Display total
+			INSERT INTO @ProduceReceipt VALUES 
+		(
+		CONCAT
+		(
+			'Total: ',
+			/*Longest length of ordered item plus spaces minus character for Total: (7) and subtoal price*/
+			REPLICATE(' ',@MaxFoodQty + 1 + @MaxFoodName + 1 + @MaxFoodPrice - 7 - LEN(FORMAT(@SubTotalAmount, 'C'))),
+			FORMAT(@SubTotalAmount, 'C')
+			)
+		)
+
+
+	-- Add the footer of the receipt
+
 	RETURN -- returns @ProduceReceipt
 END
 GO
 
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Given a ReceiptID, return only the total cost of all OrderedItems for that Receipt as a smallmoney.
 -- =============================================
+CREATE PROCEDURE sp_getSalesTaxRate @HotelID smallint
+AS
+		DECLARE @Query	nvarchar(MAX)
+		DECLARE @TQuery nvarchar(MAX)
+		DECLARE @VAR DECIMAL(6,4)
+
+		SELECT @TQuery = 
+			CONCAT('''SELECT TOP 1 TR.SalesTaxRate 
+			FROM Hotel AS H
+				INNER JOIN Taxrate as TR
+				ON H.TaxLocationID = TR.TaxLocationID
+			WHERE
+				H.HotelID = ', @HotelID, '''')
+
+		CREATE TABLE #temptable (SalesTaxRate decimal(6,4))
+		SELECT @Query = CONCAT('INSERT INTO #temptable SELECT * FROM OPENQUERY(FARMS, ', @TQuery, ')')
+
+		EXEC (@Query)
+
+
+		SELECT * FROM #temptable 
+
+GO
+
 CREATE FUNCTION dbo.ReceiptTotalAmount(@ReceiptID int)
-RETURNS smallmoney 
+RETURNS @ReceiptAmounts table (SubTotal smallmoney, TaxAmount smallmoney, TaxRate decimal(6,4), DiscountAmount smallmoney, TotalAmount smallmoney) 
 AS
 BEGIN
-	DECLARE @TotalAmount smallmoney = 0
+	DECLARE
+		@SubTotal		smallmoney = 0,
+		@TaxAmount		smallmoney = 0,
+		@TaxRate		decimal(6,4),
+		@DiscountAmount	smallmoney,
+		@TotalAmount	smallmoney = 0
 
-	RETURN  @TotalAmount
+	DECLARE 
+		@HotelID smallint
+	-- Find if restaurnt is in hotel
+	SELECT 
+		@HotelID = R.HotelID
+	FROM Receipt as RCPT
+		INNER JOIN Restaurant AS R
+		ON RCPT.RestaurantID = R.RestaurantID
+	WHERE
+		RCPT.ReceiptID = @ReceiptID
+
+	---- If restaurant in hotel query Farms to find salesTax
+	IF @HotelID IS NOT NULL
+	BEGIN
+	declare @nothing bit
+
+	EXEC @TaxRate = sp_getSalesTaxRate @HotelID  = @HotelID
+
+	END
+
+	-- Cursor through to find subtotal
+
+	-- Find discount percentage OR amount
+
+	-- Add it all up for total
+	INSERT INTO @ReceiptAmounts VALUES
+	(	
+		@SubTotal		,
+		@TaxAmount		,
+		@TaxRate		,
+		@DiscountAmount	,
+		@TotalAmount
+	)
+
+	RETURN; -- returns @ReceiptAmounts
 END
 GO
+
 
 /****************************************************************
 *
@@ -713,7 +1310,7 @@ GO
 -- =============================================
 -- Author:		Korbin Dansie
 -- Create date: 2022-11-16
--- Description:	When the user adds a new Ordered_Item it checks to see if the item is the special of the day at that restaurant. Then it replaces the current Ordered_Item price with a 10% discount. It also adds “Special of the day” to the Ordered_Item.OrderedAdjustments row.
+-- Description:	When the user adds a new Ordered_Item it checks to see if the item is the special of the day at that restaurant. Then it replaces the current Ordered_Item price with a 10% discount. It also adds ï¿½Special of the dayï¿½ to the Ordered_Item.OrderedAdjustments row.
 -- =============================================
 CREATE TRIGGER tr_SpecialOfTheDay
 ON Ordered_Item
@@ -795,7 +1392,7 @@ GO
 *
 ****************************************************************/
 PRINT('')
-PRINT('Problem 1 - Add a new food item to a menu - To test SPROC sp_SendBillToRoom')
+PRINT('Problem 1 - Add a new food item to a menu - To test trigger sp_SendBillToRoom')
 PRINT('adding pancakes (1) to the breakfast menu (1)')
 
 INSERT INTO Menu_Item ([FoodItemID],[MenuID],[MenuItemPrice])
@@ -817,6 +1414,7 @@ PRINT('adding water (8) to the receipt (5)')
 
 INSERT INTO Ordered_Item ([FoodItemID],[ReceiptID],[OrderedPrice])
 VALUES (1,5,10.00)
+PRINT('')
 GO
 
 -- SELECT * FROM Ordered_Item
@@ -866,8 +1464,84 @@ DECLARE @BillingTable TABLE (BillingID smallint, FolioID smallint, BillingCatego
 INSERT INTO @BillingTable EXEC (@OpenQuery + @Command + ''')') 
 SELECT * FROM @BillingTable
 
+
 PRINT('****************************************************************')
 GO
+
+PRINT('')
+PRINT('Problem 4 - Display the breakfast menu - To test USDF DisplayMenu')
+PRINT('')
+
+
+SELECT * FROM dbo.DisplayMenu(1, '7:00:00')
+
+PRINT('****************************************************************')
+GO
+
+PRINT('')
+PRINT('Problem 5 - Display the specail menu - To test USDF DisplaySpecials')
+PRINT('Restaurant (1) has a specail everday')
+PRINT('')
+
+
+SELECT * FROM dbo.DisplaySpecials(1)
+
+PRINT('********************************')
+PRINT('')
+PRINT('Problem 5B - Display the specail menu or Restaurant 3 with split menus')
+PRINT('')
+
+SELECT * FROM dbo.DisplaySpecials(3)
+
+PRINT('****************************************************************')
+GO
+
+PRINT('')
+PRINT('Problem 6 - Display the receipt - To test USDF CreateReceipt')
+PRINT('Receipt (1) 4 Items -- Subtotal 43.99 -- Tax 3.30 -- Total 47.29')
+PRINT('')
+
+SELECT * FROM dbo.CreateReceipt(1)
+
+PRINT('****************************************************************')
+GO
+PRINT('')
+PRINT('Problem 7 - Total up the receipt - To test USDF ReceiptTotalAmount')
+PRINT('')
+
+SELECT * FROM dbo.ReceiptTotalAmount(1)
+GO
+
+PRINT('****************************************************************')
+GO
+PRINT('')
+PRINT('Problem 8 - Insert an Ordered Item - To test SPROC sp_AddItem')
+PRINT('')
+
+EXEC sp_AddItem 
+	@FoodItemID = 2,
+	@ReceiptID = 3,
+	@MenuID = 1,
+	@Amount = 3,
+	@OrderedAdjustments = 'Melt my face off'
+
+SELECT * FROM Ordered_Item WHERE ReceiptID = 3
+
+/*
+@FoodItemID			smallint,
+@ReceiptID			int,
+@MenuID				int = NULL,
+@Amount				smallmoney = NULL,
+@OrderedAdjustments	varchar(MAX) = NULL
+*/
+GO
+
+PRINT('****************************************************************')
+GO
+
+DECLARE @Temp decimal(6,4)
+EXEC @Temp = sp_getSalesTaxRate @HotelID = 2100
+print(@Temp)
 
 /****************************************************************
 *
