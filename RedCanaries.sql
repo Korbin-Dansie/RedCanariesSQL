@@ -1096,10 +1096,13 @@ AS
 			WHERE
 				H.HotelID = ', @HotelID, '''')
 
-		SELECT @Query = CONCAT('SELECT * FROM OPENQUERY(FARMS, ', @TQuery, ')')
+		CREATE TABLE #temptable (SalesTaxRate decimal(6,4))
+		SELECT @Query = CONCAT('INSERT INTO #temptable SELECT * FROM OPENQUERY(FARMS, ', @TQuery, ')')
 
 		EXEC (@Query)
 
+
+		SELECT * FROM #temptable 
 
 GO
 
@@ -1130,7 +1133,7 @@ BEGIN
 	BEGIN
 	declare @nothing bit
 
-	EXEC sp_getSalesTaxRate @HotelID = @HotelID
+	EXEC @TaxRate = sp_getSalesTaxRate @HotelID  = @HotelID
 
 	END
 
@@ -1374,7 +1377,12 @@ PRINT('')
 SELECT * FROM dbo.ReceiptTotalAmount(1)
 GO
 
-EXEC sp_getSalesTaxRate @HotelID = 2100
+PRINT('****************************************************************')
+GO
+
+DECLARE @Temp decimal(6,4)
+EXEC @Temp = sp_getSalesTaxRate @HotelID = 2100
+print(@Temp)
 
 /****************************************************************
 *
