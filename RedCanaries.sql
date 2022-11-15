@@ -465,10 +465,9 @@ GO
 *
 ****************************************************************/
 -- =============================================
--- Author:		
+-- Author:		Briella Rutherford
 -- Create date: 2022-11-16
--- Description:	This SPROC will send a guest�s bill to the folio for their reservation if they are checked in. 
--- UNTESTED =====================================================================================
+-- Description:	This SPROC will send a guest's bill to the folio for their reservation if they are checked in. 
 -- =============================================
 CREATE PROCEDURE sp_SendBillToRoom 
 @GuestFirstName		varchar(20),
