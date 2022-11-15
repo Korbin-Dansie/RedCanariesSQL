@@ -1192,11 +1192,98 @@ GO
 -- Create date: 2022-11-16
 -- Description:	Given a ReceiptID, return only the total cost of all OrderedItems for that Receipt as a smallmoney.
 -- =============================================
-CREATE PROCEDURE sp_getSalesTaxRate @HotelID smallint
+CREATE FUNCTION dbo.ReceiptTotalAmount(@ReceiptID int)
+RETURNS @ReceiptAmounts table (SubTotal smallmoney, DiscountAmount smallmoney, TotalAmount smallmoney, ItemCount tinyint) 
 AS
+BEGIN
+	DECLARE
+		@SubTotal		smallmoney = 0,
+		@DiscountAmount	smallmoney,
+		@ItemCount		tinyint	   = 0
+
+	-- Cursor through to find subtotal
+	DECLARE 
+		@SingleItemPrice smallmoney,
+		@SingleItemQty	 tinyint
+
+	DECLARE cursor_OrderedItems CURSOR
+
+	FOR SELECT
+		OI.OrderedPrice,
+		OI.OrderedItemQty
+	FROM Receipt AS RCPT
+		INNER JOIN Ordered_Item AS OI
+		ON RCPT.ReceiptID = OI.ReceiptID
+	WHERE
+		RCPT.ReceiptID = @ReceiptID
+
+	OPEN cursor_OrderedItems
+
+	FETCH NEXT FROM cursor_OrderedItems INTO
+		@SingleItemPrice ,
+		@SingleItemQty	 
+
+	---- Subtotal = Price * amount, and count how many items were orderd
+	WHILE @@FETCH_STATUS = 0
+    BEGIN
+		SET @SubTotal = @SubTotal + @SingleItemPrice * @SingleItemQty
+		SET @ItemCount = @ItemCount + @SingleItemQty
+
+		FETCH NEXT FROM cursor_OrderedItems INTO
+			@SingleItemPrice ,
+			@SingleItemQty	 
+    END
+	CLOSE cursor_OrderedItems
+	DEALLOCATE cursor_OrderedItems
+
+
+	-- Find discount percentage OR amount
+	DECLARE
+		@DiscountOffAmount	smallmoney,
+		@DiscountOffPercent	decimal(4,2)
+
+	SELECT @DiscountOffAmount = D.DiscountAmount, @DiscountOffPercent = D.DiscountPercent
+	FROM Receipt AS RCPT
+		INNER JOIN Discount AS D
+		ON RCPT.DiscountID = D.DiscountID
+	WHERE
+		RCPT.ReceiptID = @ReceiptID
+
+	---- Do math to find Discounted Rate. If its a percentage off find the amount. If its an fixed amount off just subtract it. If no discount set it to @QuotedRate
+	IF @DiscountOffPercent > 0 
+		SET @DiscountAmount = @SubTotal * (@DiscountOffPercent / 100)
+	ELSE IF @DiscountOffAmount > 0 
+		SET @DiscountAmount = @DiscountOffAmount
+	ELSE -- Is default and has no discount
+		SET @DiscountAmount = 0
+
+
+	-- Add it all up for total
+	SET @DiscountAmount = @DiscountAmount * -1
+	INSERT INTO @ReceiptAmounts VALUES
+	(	
+		@SubTotal		,
+		@DiscountAmount	,
+		@SubTotal + @DiscountAmount	,
+		@ItemCount
+	)
+
+	RETURN; -- returns @ReceiptAmounts
+END
+GO
+
+-- =============================================
+-- Author:		Korbin Dansie
+-- Create date: 2022-11-16
+-- Description:	Helper function to get sales tax rate from a FARMS hotel
+-- =============================================
+CREATE PROCEDURE sp_getSalesTaxRate 
+	(@HotelID		smallint,
+	@SalesTaxRate	decimal(6,4) OUTPUT)
+AS
+BEGIN
 		DECLARE @Query	nvarchar(MAX)
 		DECLARE @TQuery nvarchar(MAX)
-		DECLARE @VAR DECIMAL(6,4)
 
 		SELECT @TQuery = 
 			CONCAT('''SELECT TOP 1 TR.SalesTaxRate 
@@ -1211,57 +1298,7 @@ AS
 
 		EXEC (@Query)
 
-
-		SELECT * FROM #temptable 
-
-GO
-
-CREATE FUNCTION dbo.ReceiptTotalAmount(@ReceiptID int)
-RETURNS @ReceiptAmounts table (SubTotal smallmoney, TaxAmount smallmoney, TaxRate decimal(6,4), DiscountAmount smallmoney, TotalAmount smallmoney) 
-AS
-BEGIN
-	DECLARE
-		@SubTotal		smallmoney = 0,
-		@TaxAmount		smallmoney = 0,
-		@TaxRate		decimal(6,4),
-		@DiscountAmount	smallmoney,
-		@TotalAmount	smallmoney = 0
-
-	DECLARE 
-		@HotelID smallint
-	-- Find if restaurnt is in hotel
-	SELECT 
-		@HotelID = R.HotelID
-	FROM Receipt as RCPT
-		INNER JOIN Restaurant AS R
-		ON RCPT.RestaurantID = R.RestaurantID
-	WHERE
-		RCPT.ReceiptID = @ReceiptID
-
-	---- If restaurant in hotel query Farms to find salesTax
-	IF @HotelID IS NOT NULL
-	BEGIN
-	declare @nothing bit
-
-	EXEC @TaxRate = sp_getSalesTaxRate @HotelID  = @HotelID
-
-	END
-
-	-- Cursor through to find subtotal
-
-	-- Find discount percentage OR amount
-
-	-- Add it all up for total
-	INSERT INTO @ReceiptAmounts VALUES
-	(	
-		@SubTotal		,
-		@TaxAmount		,
-		@TaxRate		,
-		@DiscountAmount	,
-		@TotalAmount
-	)
-
-	RETURN; -- returns @ReceiptAmounts
+		SELECT TOP 1 @SalesTaxRate = SalesTaxRate FROM #temptable
 END
 GO
 
@@ -1507,10 +1544,21 @@ PRINT('****************************************************************')
 GO
 PRINT('')
 PRINT('Problem 7 - Total up the receipt - To test USDF ReceiptTotalAmount')
-PRINT('')
+PRINT('Recipt 1, 2, 4 to test types of discount none, fixed, percentage')
 
+PRINT('')
 SELECT * FROM dbo.ReceiptTotalAmount(1)
+SELECT * FROM dbo.ReceiptTotalAmount(2)
+SELECT * FROM dbo.ReceiptTotalAmount(4)
 GO
+
+PRINT('****************************************************************')
+
+--DECLARE @Temp decimal(6,4) = 0.0
+--DECLARE @HotelID smallint = 2100
+
+--EXEC sp_getSalesTaxRate @HotelID,  @Temp OUTPUT;
+--print(@Temp)
 
 PRINT('****************************************************************')
 GO
@@ -1537,12 +1585,7 @@ SELECT * FROM Ordered_Item WHERE ReceiptID = 3
 */
 GO
 
-PRINT('****************************************************************')
 
-
-DECLARE @Temp decimal(6,4)
-EXEC @Temp = sp_getSalesTaxRate @HotelID = 2100
-print(@Temp)
 
 /****************************************************************
 *
