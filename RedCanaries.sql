@@ -600,13 +600,15 @@ GO
 -- =============================================
 CREATE PROCEDURE sp_AddFoodItem 
 @IngredientsList	varchar(MAX),
-@MenuList			varchar(MAX) = NULL
+@MenuList			varchar(MAX) = NULL,
+@FoodID				smallint OUTPUT
 AS
 	DECLARE @NOTHING int
+
 GO
 
 -- =============================================
--- Author:		
+-- Author:		Briella Rutherford
 -- Create date: 2022-11-16
 -- Description:	Given a FoodItemID, ReceiptID, and MenuID and optional Amount and OrderedAdjustments, add an entry to the ORDERED_ITEM table for this receipt.
 -- =============================================
@@ -1610,6 +1612,31 @@ SELECT * FROM Ordered_Item WHERE ReceiptID = 3
 */
 GO
 
+PRINT('****************************************************************')
+GO
+
+PRINT('')
+PRINT('Problem 9 - Insert an Food item - To test SPROC sp_AddFoodItem')
+PRINT('')
+
+DECLARE @FoodID smallint = 0 -- used to query the new food item
+
+EXEC sp_AddFoodItem 
+@IngredientsList	= '',
+@MenuList			= '1',
+@FoodID				= @FoodID
+
+
+SELECT * FROM Food_Item AS FI WHERE FI.FoodItemID = @FoodID
+
+/*
+@FoodItemID			smallint,
+@ReceiptID			int,
+@MenuID				int = NULL,
+@Amount				smallmoney = NULL,
+@OrderedAdjustments	varchar(MAX) = NULL
+*/
+GO
 /****************************************************************
 *
 *	Delete Tables when done
