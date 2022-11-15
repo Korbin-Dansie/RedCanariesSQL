@@ -169,7 +169,7 @@ CREATE TABLE Folio
 (
 FolioID					smallint		NOT NULL IDENTITY,
 ReservationID			smallint		NOT NULL, --- Foreign Key
-GuestID			smallint		NOT NULL, --- TRIGGER
+GuestID					smallint		NOT NULL, --- TRIGGER
 RoomID					smallint		NOT NULL, --- Foreign Key
 FolioQuotedRate			smallmoney		NOT NULL,
 FolioCheckinDate		smalldatetime	NOT NULL,
@@ -419,22 +419,4 @@ UPDATE Folio SET FolioStatus = 'A' WHERE ReservationID = 5005
 GO
 
 
---DROP DATABASE FARMS
 
-
-USE FARMS
-SELECT GuestID FROM GUEST WHERE GuestID = 1500 AND GuestFirst = 'Anita' AND GuestLast = 'Proul'
-
-
-/*
-UPDATE
-
-@GuestFirstName	= 'Anita',
-@GuestLastName = 'Proul',
-@CreditCardNumber = '8887776665551110',
-@HotelID = 2100,
-@ReceiptID			int,
-@RoomNumber = '202'
-*/
-
-SELECT GuestID FROM GUEST WHERE GuestID = 1500 AND GuestFirst = 'Anita'
