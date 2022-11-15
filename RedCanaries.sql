@@ -490,9 +490,10 @@ AS
 	-- IF there are too many elegible guests, throw an error
 
 	IF((SELECT COUNT(*) FROM @GuestTable) > 1) 
-		BEGIN
-			DECLARE @GuestError varchar(50) = CONCAT('TooManyGuests: ',(SELECT COUNT(*) FROM @GuestTable))
-			RAISERROR(@GuestError,16,10)
+	BEGIN
+		DECLARE @GuestError varchar(50) = CONCAT('TooManyGuests: ',(SELECT COUNT(*) FROM @GuestTable))
+		RAISERROR(@GuestError,16,10)
+		RETURN -1
 	END
 
 	DECLARE @GuestID smallint = (SELECT GuestID FROM @GuestTable)
@@ -507,7 +508,10 @@ AS
 	-- IF there is no match, throw an error that there is no matching guest and end the procedure
 	
 	IF(NOT EXISTS (SELECT 1 FROM @MatchesTable)) 
+	BEGIN
 		RAISERROR('NoMatchingGuests',16,10)
+		RETURN -1
+	END
 
 	-- Use the CreditCardID to query the FARMS RESERVATION table to find reservations under that credit card which are active
 	-- Store the potential ReservationID�s.
@@ -518,8 +522,11 @@ AS
 
 	-- IF there is no match, throw an error that there is no active reservation and end the procedure.
 	
-	IF(NOT EXISTS (SELECT 1 FROM @ReservationsTable)) 
+	IF(NOT EXISTS (SELECT 1 FROM @ReservationsTable))
+	BEGIN
 		RAISERROR('NoElegibleReservations',16,10)
+		RETURN -1
+	END
 
 	-- Use ReservationID to query FARMS Folio and JOIN with ROOM table to use Room's HotelId and find ones that match the hotel
 	
@@ -538,14 +545,18 @@ AS
 	-- IF there is no match, throw an error that all reservations are at the wrong hotel and end the procedure
 	
 	IF(NOT EXISTS (SELECT 1 FROM @MatchingFolios)) 
+	BEGIN
 		RAISERROR('ReservationsAtWrongHotel',16,10)
+		RETURN -1
+	END
 
 	-- IF there are multiple folios at this point throw an error that there are multiple qualifying reservations.
 
 	IF((SELECT COUNT(*) FROM @MatchingFolios) > 1) 
-		BEGIN
-			DECLARE @ResError varchar(50) = CONCAT('TooManyReservations: ',(SELECT COUNT(FolioID) FROM @MatchingFolios))
-			RAISERROR(@ResError,16,10)
+	BEGIN
+		DECLARE @ResError varchar(50) = CONCAT('TooManyReservations: ',(SELECT COUNT(FolioID) FROM @MatchingFolios))
+		RAISERROR(@ResError,16,10)
+		RETURN -1
 	END
 	
 	-- There should only be one Folio left
@@ -606,7 +617,43 @@ CREATE PROCEDURE sp_AddItem
 @Amount				smallmoney = NULL,
 @OrderedAdjustments	varchar(MAX) = NULL
 AS
-	DECLARE @NOTHING int
+	-- IF Amount is not entered, set it to 1
+
+	IF (@Amount IS NULL) SET @Amount = 1
+
+	-- Query the ORDERED_ITEM table to find if there is already an entry matching the ReceiptID. 
+	
+	DECLARE @ItemTable TABLE (OrderedItemID int, OrderedItemQty tinyint, OrderedAdjustments varchar(MAX))
+	INSERT INTO @ItemTable SELECT OrderedItemID, OrderedItemQty, OrderedAdjustments FROM Ordered_Item WHERE FoodItemID = @FoodItemID AND ReceiptID = @ReceiptID
+
+	-- IF there is, add our Amount variable to OrderedItemQty for that entry, and concatenate the given OrderedAdjustments.
+	
+	IF((SELECT COUNT(*) FROM @ItemTable) > 0) 
+	BEGIN
+		DECLARE @ID int = (SELECT TOP 1 OrderedItemID FROM @ItemTable)
+		DECLARE @OldQty tinyint = (SELECT TOP 1 OrderedItemQty FROM @ItemTable)
+		DECLARE @OldAdj varchar(MAX) = (SELECT TOP 1 OrderedAdjustments FROM @ItemTable)
+		IF (@OrderedAdjustments IS NOT NULL) UPDATE Ordered_Item SET OrderedAdjustments = CONCAT(@OldAdj, ' ', @OrderedAdjustments) WHERE OrderedItemID = @ID
+		UPDATE Ordered_Item SET OrderedItemQty = (@OldQty + @Amount) WHERE OrderedItemID = @ID
+		RETURN
+	END
+	
+	-- ELSE IF MenuID is null, throw an error that the menu could not be found, and end the procedure. 
+	
+	IF (@MenuID IS NULL)
+	BEGIN
+		RAISERROR('Menu could not be found',16,10)
+		RETURN -1
+	END
+		
+	-- Query the MENU_ITEM table with the given FoodItemID  and MenuID to find the appropriate MenuItemPrice
+		
+	DECLARE @OrderedPrice smallmoney = (SELECT MenuItemPrice FROM Menu_Item WHERE FoodItemID = @FoodItemID AND MenuID = @MenuID)
+
+	-- Create a new entry for the ORDERED_ITEM table, using the given FoodItemID, ReceiptID, Amount, OrderedAdjustments (leave null if not given), 
+	-- the MenuItemPrice obtained above for the OrderedPrice, and the Amount given as the OrderedItemQty.
+	INSERT INTO Ordered_Item VALUES (@FoodItemID, @ReceiptID, @OrderedAdjustments, @OrderedPrice, @Amount)
+
 GO
 
 /****************************************************************
@@ -1467,6 +1514,31 @@ GO
 
 PRINT('****************************************************************')
 GO
+
+PRINT('')
+PRINT('Problem 8 - Insert an Ordered Item - To test SPROC sp_AddItem')
+PRINT('')
+
+EXEC sp_AddItem 
+	@FoodItemID = 2,
+	@ReceiptID = 3,
+	@MenuID = 1,
+	@Amount = 3,
+	@OrderedAdjustments = 'Melt my face off'
+
+SELECT * FROM Ordered_Item WHERE ReceiptID = 3
+
+/*
+@FoodItemID			smallint,
+@ReceiptID			int,
+@MenuID				int = NULL,
+@Amount				smallmoney = NULL,
+@OrderedAdjustments	varchar(MAX) = NULL
+*/
+GO
+
+PRINT('****************************************************************')
+
 
 DECLARE @Temp decimal(6,4)
 EXEC @Temp = sp_getSalesTaxRate @HotelID = 2100
