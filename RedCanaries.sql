@@ -15,14 +15,20 @@ USE master
 		@datasrc = N'DESKTOP-EVA\SQLEXPRESS', -- DESKTOP-EVA or LAPTOP-5AR7P28S
 		@catalog = N'FARMS'
 
-	Exec sp_serveroption N'FARMS', 'data access', 'true'
-	Exec sp_serveroption N'FARMS', 'rpc', 'true'
-	Exec sp_serveroption N'FARMS', 'rpc out', 'true'
-	Exec sp_serveroption N'FARMS', 'collation compatible', 'true'
+	EXEC sp_serveroption N'FARMS', 'data access', 'true'
+	EXEC sp_serveroption N'FARMS', 'rpc', 'true'
+	EXEC sp_serveroption N'FARMS', 'rpc out', 'true'
+	EXEC sp_serveroption N'FARMS', 'collation compatible', 'true'
 
-	Exec sp_addlinkedsrvlogin 'FARMS', 'true'
+	EXEC sp_addlinkedsrvlogin 'FARMS', 'true'
 
+	EXEC sp_configure 'show advanced options', 1
+	reconfigure
 
+	GO
+
+	EXEC sp_configure 'Ad Hoc Distributed Queries', 1
+	reconfigure
 
 GO
 
@@ -474,19 +480,25 @@ CREATE PROCEDURE sp_SendBillToRoom
 AS
 	-- Query CreditCard to get the record matching the given credit card, keep GuestID and CreditCardID
 
-	--DECLARE @Table TABLE (GuestID smallint, CreditCardID smallint, CCNumber varchar(16)) 
-	--INSERT INTO @Table SELECT * FROM OPENQUERY(FARMS, 'SELECT GuestID, CreditCardID, CCNumber FROM CreditCard') WHERE CCNumber = @CreditCardNumber
-
 	
-	DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
+	DECLARE @OpenQuery Nvarchar(100) = N'SELECT * FROM OPENQUERY(FARMS, '''
 	DECLARE @Command Nvarchar(MAX)
 	SET @Command = N'SELECT GuestID, CreditCardID FROM CreditCard WHERE CCNumber = '+@CreditCardNumber
 
 	DECLARE @GuestTable TABLE (GuestID smallint, CreditCardID smallint) 
 	INSERT INTO @GuestTable EXEC (@OpenQuery + @Command + ''')') 
+
+	-- IF there are too many elegible guests, throw an error
+
+	IF((SELECT COUNT(*) FROM @GuestTable) > 1) 
+		BEGIN
+			DECLARE @GuestError varchar(50) = CONCAT('TooManyGuests: ',(SELECT COUNT(*) FROM @GuestTable))
+			RAISERROR(@GuestError,16,10)
+	END
+
 	DECLARE @GuestID smallint = (SELECT GuestID FROM @GuestTable)
 	DECLARE @CreditCardID smallint = (SELECT CreditCardID FROM @GuestTable)
-
+	
 	-- Use given GuestIDs to query FARMS GUEST and find guests whose name match what was given
 
 	SET @Command = CONCAT(N'SELECT GuestID FROM GUEST WHERE GuestID = ', @GuestID, ' AND GuestFirst = ''''', @GuestFirstName, ''''' AND GuestLast = ''''',@GuestLastName,'''''')
@@ -506,16 +518,69 @@ AS
 	INSERT INTO @ReservationsTable EXEC (@OpenQuery + @Command + ''')') 
 
 	-- IF there is no match, throw an error that there is no active reservation and end the procedure.
-
+	
 	IF(NOT EXISTS (SELECT 1 FROM @ReservationsTable)) 
 		RAISERROR('NoElegibleReservations',16,10)
 
 	-- Use ReservationID to query FARMS Folio and JOIN with ROOM table to use Room's HotelId and find ones that match the hotel
+	
+	SET @Command = CONCAT(N'SELECT FolioID, ReservationID FROM Folio JOIN Room ON Folio.RoomID = Room.RoomID WHERE Room.HotelID = ',@HotelID)
+	DECLARE @FolioTable TABLE (FolioID smallint, ReservationID smallint) 
+	INSERT INTO @FolioTable EXEC (@OpenQuery + @Command + ''')') 
 
-	SET @Command = CONCAT(N'SELECT FolioID FROM Folio JOIN Room ON Folio.RoomID = Room.RoomID WHERE Room.HotelID = ',@HotelID)
-	DECLARE @RoomsTable TABLE (ReservationID smallint) 
-	INSERT INTO @ReservationsTable EXEC (@OpenQuery + @Command + ''')') 
+	-- Find Rooms that match the Folios we have
+	
+	DECLARE @MatchingFolios TABLE (FolioID smallint, ReservationID smallint) 
+	INSERT INTO @MatchingFolios 
+		SELECT FolioID, FolioTable.ReservationID FROM @FolioTable AS FolioTable 
+			INNER JOIN @ReservationsTable AS ReservationsTable 
+			ON FolioTable.ReservationID = ReservationsTable.ReservationID
 
+	-- IF there is no match, throw an error that all reservations are at the wrong hotel and end the procedure
+	
+	IF(NOT EXISTS (SELECT 1 FROM @MatchingFolios)) 
+		RAISERROR('ReservationsAtWrongHotel',16,10)
+
+	-- IF there are multiple folios at this point throw an error that there are multiple qualifying reservations.
+
+	IF((SELECT COUNT(*) FROM @MatchingFolios) > 1) 
+		BEGIN
+			DECLARE @ResError varchar(50) = CONCAT('TooManyReservations: ',(SELECT COUNT(FolioID) FROM @MatchingFolios))
+			RAISERROR(@ResError,16,10)
+	END
+	
+	-- There should only be one Folio left
+	DECLARE @FolioID smallint = (SELECT FolioID FROM @MatchingFolios)
+
+	-- Use the given ReceiptID to query the local RECEIPT to get the tip amount, and the ReceiptDate
+
+	DECLARE @ReceiptTable TABLE (ReceiptTip smallmoney, ReceiptDate datetime);
+	INSERT INTO @ReceiptTable SELECT ReceiptTip, ReceiptDate FROM Receipt WHERE ReceiptID = @ReceiptID
+	DECLARE @ReceiptTip smallmoney = (SELECT ReceiptTip FROM @ReceiptTable)
+	DECLARE @ReceiptDate datetime = (SELECT ReceiptDate FROM @ReceiptTable)
+	
+	-- Use the ReceiptID to call the dbo.ReceiptTotalAmount and get the total cost of that receipt.
+	-- FIX THIS LATER
+
+	DECLARE @ReceiptTotal smallmoney = $12.34
+	DECLARE @TotalCost smallmoney = @ReceiptTotal + @ReceiptTip
+
+	/*
+	Insert into the FARMS BILLING table an entry with the FolioID, 
+	the appropriate BillingCategoryID for a restaurant purchase (hard-coded), 
+	a BillingDescription of “Restaurant Purchase” concatenated with the receipt ID, 
+	add the tip and total cost retrieved earlier to insert for the BillingCost, 
+	BillingItemQuantity will be 1, and use the ReceiptDate from earlier as the BillingItemDate.
+	*/
+
+	
+	SET @Command = CONCAT(N'INSERT OPENQUERY (FARMS, ''SELECT FolioID, BillingCategoryID, BillingDescription, BillingAmount, BillingItemQty, BillingItemDate FROM Billing WHERE 1=0'') VALUES (',@FolioID,', 5, ''Resturaunt Purchase: ',@ReceiptID,''', ',@ReceiptTotal,', 1, ''',@ReceiptDate , ''')')
+	EXEC (@Command) 
+
+
+	
+
+	RETURN
 GO
 
 -- =============================================
@@ -1319,15 +1384,40 @@ GO
 
 PRINT('')
 PRINT('Problem 3 - Send a bill to a reservation - To test SPROC sp_SendBillToRoom')
--- PRINT('adding water (8) to the receipt (5)')
+
+PRINT('Current Billing Table from FARMS:')
+
+DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
+DECLARE @Command varchar (200)= N'SELECT * FROM Billing WHERE FolioID = 7'
+DECLARE @BillingTable TABLE (BillingID smallint, FolioID smallint, BillingCategoryID smallint, BillingDescription char(30), BillingAmount smallmoney, BillintItemQty tinyint, BillingItemDate date) 
+INSERT INTO @BillingTable EXEC (@OpenQuery + @Command + ''')') 
+SELECT * FROM @BillingTable
+
+PRINT('')
+
+GO
+
+PRINT('Running the SPROC...')
 
 EXEC sp_SendBillToRoom 
-@GuestFirstName	= 'Anita',
-@GuestLastName = 'Proul',
-@CreditCardNumber = '8887776665551110',
-@HotelID = 2100,
-@ReceiptID = 4,
-@RoomNumber = '202'
+	@GuestFirstName	= 'Anita',
+	@GuestLastName = 'Proul',
+	@CreditCardNumber = '8887776665551110',
+	@HotelID = 2100,
+	@ReceiptID = 4,
+	@RoomNumber = '202'
+
+GO 
+
+PRINT('New Billing Table from FARMS:')
+PRINT('There should be a row for Anita Proul''s most recent meal at hotel 2100 for 12.34')
+
+DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
+DECLARE @Command varchar (200)= N'SELECT * FROM Billing WHERE FolioID = 7'
+DECLARE @BillingTable TABLE (BillingID smallint, FolioID smallint, BillingCategoryID smallint, BillingDescription char(30), BillingAmount smallmoney, BillintItemQty tinyint, BillingItemDate date) 
+INSERT INTO @BillingTable EXEC (@OpenQuery + @Command + ''')') 
+SELECT * FROM @BillingTable
+
 
 PRINT('****************************************************************')
 GO
