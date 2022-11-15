@@ -599,12 +599,134 @@ GO
 -- Description:	Create a new FOOD_ITEM with many possible ingredients and add it to a variety of restaurant menus. Use comma-separated values.
 -- =============================================
 CREATE PROCEDURE sp_AddFoodItem 
+@FoodName			varchar(30),
+@FoodDescription	varchar(MAX) = NULL,
+@AgeRestriced		bit,
+@FoodCategoryID		tinyint,	
+@FoodDefaultPrice	smallmoney,
+
 @IngredientsList	varchar(MAX),
 @MenuList			varchar(MAX) = NULL,
+
 @FoodID				smallint OUTPUT
 AS
-	DECLARE @NOTHING int
+	DECLARE @ErrorMessage nvarchar(MAX)
 
+	-- Simple test first to make sure @FoodCategoryID entered exits
+	IF NOT EXISTS (SELECT * FROM Food_Category AS FC WHERE FC.FoodCategoryID = @FoodCategoryID)
+	BEGIN
+		SET @ErrorMessage = 'The food category number you entered does not exits';
+		RAISERROR(@ErrorMessage, 1, 1)
+		RETURN
+	END
+
+	-- Test if each ingredient exists
+	----- Cursor through each food item
+	----- if it does not exit add it to the error message
+	
+	---- If null throw error
+	IF @IngredientsList IS NULL OR @IngredientsList = ''
+	BEGIN
+		SET @ErrorMessage = 'Ingredients list is empty'
+		RAISERROR(@ErrorMessage, 1,2)
+		RETURN
+	END
+
+	---- Seperate the csvs into a temp table	
+	CREATE TABLE #IngredientsList 
+	(
+		Ingredient varchar(30)
+	)
+
+	INSERT INTO #IngredientsList SELECT value  
+	FROM STRING_SPLIT(@IngredientsList, ',')  
+	WHERE RTRIM(value) <> '';
+
+	---- Cursor through the ingrediants that dont belong
+	DECLARE @IngredientName varchar(30)
+	
+	DECLARE cursor_ingredient CURSOR
+	
+	------ Find which ingredants dont belong
+	FOR SELECT IL.Ingredient
+	FROM Ingredient AS INGR
+		RIGHT JOIN #IngredientsList AS IL
+		ON INGR.IngredientName = IL.Ingredient
+	WHERE
+		INGR.IngredientName IS NULL
+
+	OPEN cursor_ingredient;
+
+	FETCH NEXT FROM cursor_ingredient INTO 
+		@IngredientName
+
+	WHILE @@FETCH_STATUS = 0
+	    BEGIN
+		-- (Ingrediantname, )
+		SET @ErrorMessage = concat(@ErrorMessage, @IngredientName,', ')
+			
+	        FETCH NEXT FROM cursor_ingredient INTO 
+	            @IngredientName 
+	    END;
+	
+	CLOSE cursor_ingredient;
+	
+	DEALLOCATE cursor_ingredient;
+
+	---- Then we know which ingediants do not work
+	IF @ErrorMessage IS NOT NULL
+	BEGIN
+		-- trim off last comma
+		SET @ErrorMessage = SUBSTRING(@ErrorMessage, 1, LEN(@ErrorMessage) - 2)
+		SET @ErrorMessage = CONCAT('Some ingrediants you enterd were incorrect. Please check near ', @ErrorMessage)
+		RAISERROR(@ErrorMessage, 1, 3)
+		RETURN
+	END
+
+	-- Create the new Food item
+	INSERT INTO Food_Item VALUES
+	(
+		@FoodName			,
+		@FoodDescription	,
+		@AgeRestriced		,
+		@FoodCategoryID		,	
+		@FoodDefaultPrice	
+	)
+
+	SELECT @FoodID = @@IDENTITY
+
+	-- Add the ingrediants to the new food recipe
+	---- Join the Ingrediant table because we have the Names but need the IDs
+	INSERT INTO Recipe (FoodItemID, IngredientID)
+	SELECT 
+		@FoodID, INGE.IngredientID 
+	FROM #IngredientsList AS IL
+		INNER JOIN Ingredient AS INGE
+		ON IL.Ingredient = INGE.IngredientName
+
+	-- Add the new food item to mutiple menus
+	---- dont throw erros if menus dont exits. The food item can be manual added latter
+	---- Seperate the csvs into a temp table
+	IF @MenuList IS NULL OR @MenuList = ''
+	BEGIN
+		RETURN -- Just end the procedure because we are done
+	END
+
+	CREATE TABLE #MenuList 
+	(
+		Menu	int
+	)
+
+	INSERT INTO #MenuList SELECT value  
+	FROM STRING_SPLIT(@MenuList, ',')  
+	WHERE RTRIM(value) <> '';
+
+	INSERT INTO Menu_Item (FoodItemID, MenuID, MenuItemPrice /*Price is default price*/)
+	SELECT 
+		@FoodID, ML.MENU, 0 /* 0 triggers to set default price. For some reason @FoodDefaultPrice does not work*/
+	FROM #MenuList AS ML
+		INNER JOIN Menu AS M -- make sure the menu at the very least exists
+		ON ML.Menu = M.MenuID	
 GO
 
 -- =============================================
@@ -1579,8 +1701,7 @@ SELECT * FROM dbo.ReceiptTotalAmount(2)
 SELECT * FROM dbo.ReceiptTotalAmount(4)
 GO
 
-PRINT('****************************************************************')
-
+---- Did not work. Cannot run distributed query in usdf without a lot of work
 --DECLARE @Temp decimal(6,4) = 0.0
 --DECLARE @HotelID smallint = 2100
 
@@ -1602,19 +1723,9 @@ EXEC sp_AddItem
 	@OrderedAdjustments = 'Melt my face off'
 
 SELECT * FROM Ordered_Item WHERE ReceiptID = 3
-
-/*
-@FoodItemID			smallint,
-@ReceiptID			int,
-@MenuID				int = NULL,
-@Amount				smallmoney = NULL,
-@OrderedAdjustments	varchar(MAX) = NULL
-*/
 GO
 
 PRINT('****************************************************************')
-GO
-
 PRINT('')
 PRINT('Problem 9 - Insert an Food item - To test SPROC sp_AddFoodItem')
 PRINT('')
@@ -1622,20 +1733,41 @@ PRINT('')
 DECLARE @FoodID smallint = 0 -- used to query the new food item
 
 EXEC sp_AddFoodItem 
-@IngredientsList	= '',
-@MenuList			= '1',
-@FoodID				= @FoodID
+@FoodName			= 'Waffles',
+@FoodDescription	= 'We can stay up late, swapping manly stories, and in the morning, I''m making waffles!',
+@AgeRestriced		= 0,
+@FoodCategoryID		= 1,	
+@FoodDefaultPrice	= 50.10,
 
+@IngredientsList	= 'Baking powder,Butter,Egg,Flour,Milk,Salt,Sugar,Water',
+@MenuList			= '1,5,200',
+
+@FoodID				= @FoodID OUTPUT
+
+
+PRINT('********************************')
+PRINT('')
+PRINT('Display the new food item')
+PRINT('')
 
 SELECT * FROM Food_Item AS FI WHERE FI.FoodItemID = @FoodID
 
-/*
-@FoodItemID			smallint,
-@ReceiptID			int,
-@MenuID				int = NULL,
-@Amount				smallmoney = NULL,
-@OrderedAdjustments	varchar(MAX) = NULL
-*/
+PRINT('********************************')
+PRINT('')
+PRINT('Display the ingredients needed for the new food item')
+PRINT('')
+SELECT 
+	FI.FoodItemID, FI.FoodName, INGR.IngredientName
+FROM Food_Item AS FI
+	INNER JOIN Recipe AS RECI
+	ON FI.FoodItemID = RECI.FoodItemID
+	INNER JOIN Ingredient AS INGR
+	ON RECI.IngredientID = INGR.IngredientID
+WHERE
+	FI.FoodItemID = @FoodID
+
+select * from dbo.DisplayMenu(1, '7:00');
+
 GO
 /****************************************************************
 *
