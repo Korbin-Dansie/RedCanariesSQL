@@ -1502,6 +1502,8 @@ AS
 	DECLARE @FoodItemID smallint
 	DECLARE @ReceiptID int
 
+	SELECT @FoodItemID = FoodItemID, @ReceiptID = ReceiptID FROM inserted
+
 	DECLARE @AgeRestricted bit
 	
 	SELECT @AgeRestricted = Food_Item.AgeRestricted 
