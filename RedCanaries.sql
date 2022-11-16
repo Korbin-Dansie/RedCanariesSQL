@@ -1491,11 +1491,19 @@ CREATE TRIGGER tr_ReceiptPaid
 ON Receipt
 AFTER UPDATE
 AS
+BEGIN
 	-- COLUMNS_UPDATED() OR UPDATE()
-	IF ( COLUMNS_UPDATED() & 6) > 0
+	IF COLUMNS_UPDATED() & 6 = 6 
 	BEGIN
-		PRINT('')
+		PRINT('UPGRADES PEOPLE')
 	END
+
+	ELSE
+	BEGIN
+		PRINT('NO....')
+		PRINT (COLUMNS_UPDATED() & 6)
+	END
+END
 GO
 
 -- =============================================
@@ -1689,7 +1697,7 @@ GO
 
 PRINT('')
 PRINT('Problem 6 - Display the receipt - To test USDF CreateReceipt')
-PRINT('Receipt (1) 4 Items -- Subtotal 43.99 -- Tax 3.30 -- Total 47.29')
+PRINT('Receipt (1) 4 Items -- Subtotal 43.99 -- Total 43.99')
 PRINT('')
 
 SELECT * FROM dbo.CreateReceipt(1)
@@ -1778,6 +1786,17 @@ PRINT('****************************************************************')
 PRINT('')
 PRINT('Problem 10 - To test TRIGGER tr_ReceiptPaid')
 PRINT('')
+select * from Receipt WHERE
+	Receipt.ReceiptID = 5
+
+UPDATE dbo.Receipt
+SET ReceiptCCNumber = '5113868647762072', ReceiptCCType = 'MAST'--, ReceiptTip = 100.00
+WHERE
+	Receipt.ReceiptID = 5
+
+select * from Receipt WHERE
+	Receipt.ReceiptID = 5
+
 
 GO
 /****************************************************************
