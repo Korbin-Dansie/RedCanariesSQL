@@ -152,22 +152,6 @@ CREATE TABLE Special
 	RestaurantID	smallint	NOT NULL,
 	SpecialWeekDay	tinyint
 )
-
-
--- Temporarily add hotel table
-CREATE TABLE Hotel
-(
-	HotelID				smallint	NOT NULL, --NOT an Identity
-	HotelName			varchar(30)	NOT NULL,
-	HotelAddress		varchar(30)	NOT NULL,
-	HotelCity			varchar(20)	NOT NULL,
-	HotelState			varchar(2),
-	HotelCountry		varchar(20)	NOT NULL,
-	HotelPostalCode		char(10)	NOT NULL,
-	HotelStarRating		char(1),
-	HotelPictureLink	varchar(100),
-	TaxLocationID		smallint	NOT NULL
-)
 GO
 
 /****************************************************************
@@ -213,10 +197,6 @@ GO
 
 	ALTER TABLE Special
 	ADD PRIMARY KEY (SpecialID)
-
-	-- Temporarily add hotel table
-	ALTER TABLE Hotel
-	ADD PRIMARY KEY (HotelID)
 GO
 /********************************
 *	1 Address
@@ -228,9 +208,6 @@ GO
 	-- Foreign Keys
 	ALTER TABLE Restaurant
 	ADD FOREIGN KEY (AddressID) REFERENCES [Address](AddressID)
-	
-	--ALTER TABLE Restaurant
-	--ADD FOREIGN KEY (HotelID) REFERENCES Hotel(HotelID)
 
 /********************************
 *	3 Menu
@@ -1673,6 +1650,8 @@ GO
 PRINT('')
 PRINT('Problem 3 - Send a bill to a reservation - To test SPROC sp_SendBillToRoom')
 
+PRINT('Uses sp_getSalesTaxRate and dbo.ReceiptTotalAmount')
+
 PRINT('Current Billing Table from FARMS:')
 
 DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
@@ -1736,7 +1715,7 @@ PRINT('****************************************************************')
 GO
 
 PRINT('')
-PRINT('Problem 5 - Display the specail menu - To test USDF DisplaySpecials')
+PRINT('Problem 5 - Display the special menu - To test USDF DisplaySpecials')
 PRINT('Restaurant (1) has a specail everday')
 PRINT('')
 
