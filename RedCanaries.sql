@@ -710,7 +710,7 @@ AS
 	-- Simple test first to make sure @FoodCategoryID entered exits
 	IF NOT EXISTS (SELECT * FROM Food_Category AS FC WHERE FC.FoodCategoryID = @FoodCategoryID)
 	BEGIN
-		SET @ErrorMessage = 'The food category number you entered does not exits';
+		SET @ErrorMessage = 'The food category number you entered does not exist';
 		RAISERROR(@ErrorMessage, 1, 1)
 		RETURN
 	END
@@ -1207,7 +1207,7 @@ BEGIN
 	-- Test to see if Restaurant exits
 	IF NOT EXISTS (SELECT TOP 1 RCPT.RestaurantID FROM Receipt AS RCPT WHERE RCPT.ReceiptID = @ReceiptID)
 	BEGIN
-		SET @ErrorMessage = CONCAT('A Restaurant with an id of ''', @ReceiptID, ''' does not exist')
+		SET @ErrorMessage = CONCAT('A Receipt with an id of ''', @ReceiptID, ''' does not exist')
 		
 		DELETE FROM @ProduceReceipt
 		INSERT INTO @ProduceReceipt VALUES (@ErrorMessage)
@@ -1716,7 +1716,7 @@ GO
 
 PRINT('')
 PRINT('Problem 5 - Display the special menu - To test USDF DisplaySpecials')
-PRINT('Restaurant (1) has a specail everday')
+PRINT('Restaurant (1) has a special everday')
 PRINT('')
 
 
