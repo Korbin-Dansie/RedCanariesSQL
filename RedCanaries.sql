@@ -1425,6 +1425,7 @@ GO
 -- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Helper function to get sales tax rate from a FARMS hotel
+-- Works but could not implment
 -- =============================================
 CREATE PROCEDURE sp_getSalesTaxRate 
 	(@HotelID		smallint,
@@ -1482,7 +1483,7 @@ AS
 GO
 
 -- =============================================
--- Author:		
+-- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	When the user updates the credit card number and the credit card type. If both are filled then add the current date and time to the ReceiptDate. If one is missing roll back the info and throw an error stating that it's missing a field.
 -- =============================================
