@@ -1634,7 +1634,7 @@ GO
 *
 ****************************************************************/
 PRINT('')
-PRINT('Problem 1 - Add a new food item to a menu - To test trigger sp_SendBillToRoom')
+PRINT('Problem 1 - Add a new food item to a menu - To test trigger tr_MenuItemDefaultPrice')
 PRINT('adding pancakes (1) to the breakfast menu (1)')
 
 INSERT INTO Menu_Item ([FoodItemID],[MenuID],[MenuItemPrice])
@@ -1651,7 +1651,7 @@ PRINT('****************************************************************')
 GO
 
 PRINT('')
-PRINT('Problem 2 - Add the special of the day - To test trigger MenuItemDefaultPrice')
+PRINT('Problem 2 - Add the special of the day - To test trigger tr_SpecialOfTheDay')
 PRINT('adding water (8) to the receipt (5)')
 
 INSERT INTO Ordered_Item ([FoodItemID],[ReceiptID],[OrderedPrice])
