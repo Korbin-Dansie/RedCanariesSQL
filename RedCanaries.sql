@@ -1699,6 +1699,7 @@ EXEC sp_SendBillToRoom
 	@RoomNumber = '202'
 GO
 
+PRINT('')
 PRINT('Running the SPROC without errors...')
 
 EXEC sp_SendBillToRoom 
@@ -1805,7 +1806,7 @@ EXEC sp_AddItem
 
 SELECT * FROM Ordered_Item WHERE ReceiptID = 3
 
-PRINT('Insert an Ordered Item where they have not already ordered that food, without giving the menu. This should produce an error.')
+PRINT('Insert an Ordered Item where they have not already ordered that food, without giving the menu. This SHOULD produce an error.')
 
 EXEC sp_AddItem 
 	@FoodItemID = 2,
@@ -1902,6 +1903,7 @@ INSERT INTO Receipt DEFAULT VALUES
 DECLARE @ReceiptID int
 SELECT @ReceiptID = @@IDENTITY
 
+PRINT('')
 PRINT('** Display the blank receipt info **')
 select RCPT.ReceiptID, RCPT.ReceiptCCType, RCPT.ReceiptCCNumber, RCPT.ReceiptDate
 from Receipt AS RCPT
