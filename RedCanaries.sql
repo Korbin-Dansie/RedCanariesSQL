@@ -1729,6 +1729,13 @@ PRINT('')
 
 SELECT * FROM dbo.DisplaySpecials(3)
 
+PRINT('********************************')
+PRINT('')
+PRINT('Problem 5C - Display the special menu or Restaurant 2 with no specials. This should show a table that only says ''No Specials''')
+PRINT('')
+
+SELECT * FROM dbo.DisplaySpecials(2)
+
 PRINT('****************************************************************')
 GO
 
@@ -1772,7 +1779,14 @@ EXEC sp_AddItem
 	@Amount = 3,
 	@OrderedAdjustments = 'Melt my face off'
 
+
 SELECT * FROM Ordered_Item WHERE ReceiptID = 3
+
+PRINT('Insert an Ordered Item where they have not already ordered that food, without giving the menu. This should produce an error.')
+
+EXEC sp_AddItem 
+	@FoodItemID = 2,
+	@ReceiptID = 8
 GO
 
 PRINT('****************************************************************')
