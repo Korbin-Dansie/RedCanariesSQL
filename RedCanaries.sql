@@ -12,7 +12,7 @@ USE master
 		@server = N'FARMS',
 		@srvproduct = N'SQLSERVER', 
 		@provider = N'SQLNCLI',
-		@datasrc = N'DESKTOP-EVA\SQLEXPRESS', -- DESKTOP-EVA or LAPTOP-5AR7P28S
+		@datasrc = N'LAPTOP-5AR7P28S\SQLEXPRESS', -- DESKTOP-EVA or LAPTOP-5AR7P28S
 		@catalog = N'FARMS'
 
 	EXEC sp_serveroption N'FARMS', 'data access', 'true'
@@ -153,23 +153,6 @@ CREATE TABLE Special
 	SpecialWeekDay	tinyint
 )
 
-
--- Temporarily add hotel table
-CREATE TABLE Hotel
-(
-	HotelID				smallint	NOT NULL, --NOT an Identity
-	HotelName			varchar(30)	NOT NULL,
-	HotelAddress		varchar(30)	NOT NULL,
-	HotelCity			varchar(20)	NOT NULL,
-	HotelState			varchar(2),
-	HotelCountry		varchar(20)	NOT NULL,
-	HotelPostalCode		char(10)	NOT NULL,
-	HotelStarRating		char(1),
-	HotelPictureLink	varchar(100),
-	TaxLocationID		smallint	NOT NULL
-)
-GO
-
 /****************************************************************
 *
 *	Add constraints
@@ -214,9 +197,6 @@ GO
 	ALTER TABLE Special
 	ADD PRIMARY KEY (SpecialID)
 
-	-- Temporarily add hotel table
-	ALTER TABLE Hotel
-	ADD PRIMARY KEY (HotelID)
 GO
 /********************************
 *	1 Address
@@ -228,9 +208,6 @@ GO
 	-- Foreign Keys
 	ALTER TABLE Restaurant
 	ADD FOREIGN KEY (AddressID) REFERENCES [Address](AddressID)
-	
-	ALTER TABLE Restaurant
-	ADD FOREIGN KEY (HotelID) REFERENCES Hotel(HotelID)
 
 /********************************
 *	3 Menu
@@ -1578,13 +1555,8 @@ GO
 *
 ****************************************************************/
 PRINT('')
-<<<<<<< Updated upstream
 PRINT('Problem 1 - Add a new food item to a menu - To test trigger sp_SendBillToRoom')
 PRINT('adding pancakes (1) to the breakfast menu (1)')
-=======
-PRINT('Problem 1 - Add a new food item to a menu - To test trigger tr_MenuItemDefaultPrice')
-PRINT('')
->>>>>>> Stashed changes
 
 PRINT('Current menu: ')
 	SELECT Food_Item.FoodName, Menu_Item.MenuItemPrice FROM Menu_Item
@@ -1610,15 +1582,12 @@ GO
 PRINT('****************************************************************')
 
 PRINT('')
-<<<<<<< Updated upstream
 PRINT('Problem 2 - Add the special of the day - To test trigger MenuItemDefaultPrice')
 PRINT('adding water (8) to the receipt (5)')
 
 INSERT INTO Ordered_Item ([FoodItemID],[ReceiptID],[OrderedPrice])
 VALUES (1,5,10.00)
-=======
-PRINT('Problem 2 - Add the special of the day - To test trigger tr_SpecialOfTheDay')
->>>>>>> Stashed changes
+
 PRINT('')
 
 PRINT('Current recipt: ')
@@ -1649,14 +1618,8 @@ PRINT('****************************************************************')
 
 PRINT('')
 PRINT('Problem 3 - Send a bill to a reservation - To test SPROC sp_SendBillToRoom')
-<<<<<<< Updated upstream
-
-PRINT('Current Billing Table from FARMS:')
-=======
 PRINT('Uses sp_getSalesTaxRate and dbo.ReceiptTotalAmount')
 PRINT('')
-
->>>>>>> Stashed changes
 
 DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
 DECLARE @Command varchar (200)= N'SELECT * FROM Billing WHERE FolioID = 7'
@@ -1670,9 +1633,7 @@ SELECT * FROM @BillingTable
 PRINT('')
 GO
 
-<<<<<<< Updated upstream
-PRINT('Running the SPROC...')
-=======
+
 PRINT('Running the SPROC WITH an error...')
 PRINT('This should return no matching guests')
 
@@ -1688,7 +1649,6 @@ GO
 
 PRINT('')
 PRINT('Running the SPROC without errors...')
->>>>>>> Stashed changes
 
 EXEC sp_SendBillToRoom 
 	@GuestFirstName	= 'Anita',
@@ -1792,11 +1752,7 @@ SELECT * FROM dbo.CreateReceipt(3)
 
 GO
 PRINT('****************************************************************')
-<<<<<<< Updated upstream
-=======
 
-
->>>>>>> Stashed changes
 PRINT('')
 PRINT('Problem 9 - Insert an Food item - To test SPROC sp_AddFoodItem')
 PRINT('')
@@ -1842,10 +1798,6 @@ PRINT('')
 PRINT('Display one of the restaurants menus where the new food item was added')
 PRINT('')
 select * from dbo.DisplayMenu(1, '7:00');
-
-<<<<<<< Updated upstream
-GO
-=======
 
 GO
 PRINT('****************************************************************')
@@ -1925,13 +1877,6 @@ PRINT('Display the two Receipt information')
 select RCPT.ReceiptID, RCPT.ReceiptAgeVerified  from Receipt as RCPT where RCPT.ReceiptID in (2,4)
 GO
 
-----Used to determine order of colums
---select *
---from sys.columns
---where object_id = object_id('dbo.Receipt')
---order by column_id
-
->>>>>>> Stashed changes
 /****************************************************************
 *
 *	Delete Tables when done
