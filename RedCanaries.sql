@@ -1883,7 +1883,7 @@ PRINT('Problem 9E - Test if ingredients were incorrect - SHOULD throw an error')
 EXEC sp_AddFoodItem 
 @FoodName			= 'Dubious Food',
 @FoodDescription	= 'Too gross to look at and permeates a bizarre smell',
-@AgeRestriced		= 0,
+@AgeRestricted		= 0,
 @FoodCategoryID		= 1,	
 @FoodDefaultPrice	= 100.00,
 
