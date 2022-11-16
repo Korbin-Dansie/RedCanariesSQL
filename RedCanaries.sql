@@ -12,7 +12,7 @@ USE master
 		@server = N'FARMS',
 		@srvproduct = N'SQLSERVER', 
 		@provider = N'SQLNCLI',
-		@datasrc = N'DESKTOP-EVA\SQLEXPRESS', -- DESKTOP-EVA or LAPTOP-5AR7P28S
+		@datasrc = N'LAPTOP-5AR7P28S\SQLEXPRESS', -- DESKTOP-EVA or LAPTOP-5AR7P28S
 		@catalog = N'FARMS'
 
 	EXEC sp_serveroption N'FARMS', 'data access', 'true'
@@ -87,7 +87,7 @@ CREATE TABLE Food_Item
 	FoodItemID			smallint	NOT NULL	IDENTITY(1,1),
 	FoodName			varchar(30)	NOT NULL,
 	FoodDescription		varchar(MAX),
-	AgeRestriced		bit			NOT NULL,
+	AgeRestricted		bit			NOT NULL,
 	FoodCategoryID		tinyint		NOT NULL,
 	FoodDefaultPrice	smallmoney	NOT NULL
 )
@@ -459,6 +459,122 @@ PRINT('****************************************************************')
 
 GO
 
+-- =============================================
+-- OUT OF ORDER SO THAT sp_SendBillToRoom CAN CALL IT
+-- Author:		Korbin Dansie 
+-- Create date: 2022-11-16
+-- Description:	Given a ReceiptID, return only the total cost of all OrderedItems for that Receipt as a smallmoney.
+-- =============================================
+CREATE FUNCTION dbo.ReceiptTotalAmount(@ReceiptID int)
+RETURNS @ReceiptAmounts table (SubTotal smallmoney, DiscountAmount smallmoney, TotalAmount smallmoney, ItemCount tinyint) 
+AS
+BEGIN
+	DECLARE
+		@SubTotal		smallmoney = 0,
+		@DiscountAmount	smallmoney,
+		@ItemCount		tinyint	   = 0
+
+	-- Cursor through to find subtotal
+	DECLARE 
+		@SingleItemPrice smallmoney,
+		@SingleItemQty	 tinyint
+
+	DECLARE cursor_OrderedItems CURSOR
+
+	FOR SELECT
+		OI.OrderedPrice,
+		OI.OrderedItemQty
+	FROM Receipt AS RCPT
+		INNER JOIN Ordered_Item AS OI
+		ON RCPT.ReceiptID = OI.ReceiptID
+	WHERE
+		RCPT.ReceiptID = @ReceiptID
+
+	OPEN cursor_OrderedItems
+
+	FETCH NEXT FROM cursor_OrderedItems INTO
+		@SingleItemPrice ,
+		@SingleItemQty	 
+
+	---- Subtotal = Price * amount, and count how many items were orderd
+	WHILE @@FETCH_STATUS = 0
+    BEGIN
+		SET @SubTotal = @SubTotal + @SingleItemPrice * @SingleItemQty
+		SET @ItemCount = @ItemCount + @SingleItemQty
+
+		FETCH NEXT FROM cursor_OrderedItems INTO
+			@SingleItemPrice ,
+			@SingleItemQty	 
+    END
+	CLOSE cursor_OrderedItems
+	DEALLOCATE cursor_OrderedItems
+
+
+	-- Find discount percentage OR amount
+	DECLARE
+		@DiscountOffAmount	smallmoney,
+		@DiscountOffPercent	decimal(4,2)
+
+	SELECT @DiscountOffAmount = D.DiscountAmount, @DiscountOffPercent = D.DiscountPercent
+	FROM Receipt AS RCPT
+		INNER JOIN Discount AS D
+		ON RCPT.DiscountID = D.DiscountID
+	WHERE
+		RCPT.ReceiptID = @ReceiptID
+
+	---- Do math to find Discounted Rate. If its a percentage off find the amount. If its an fixed amount off just subtract it. If no discount set it to @QuotedRate
+	IF @DiscountOffPercent > 0 
+		SET @DiscountAmount = @SubTotal * (@DiscountOffPercent / 100)
+	ELSE IF @DiscountOffAmount > 0 
+		SET @DiscountAmount = @DiscountOffAmount
+	ELSE -- Is default and has no discount
+		SET @DiscountAmount = 0
+
+
+	-- Add it all up for total
+	INSERT INTO @ReceiptAmounts VALUES
+	(	
+		@SubTotal		,
+		@DiscountAmount	,
+		@SubTotal - @DiscountAmount	,
+		@ItemCount
+	)
+
+	RETURN; -- returns @ReceiptAmounts
+END
+GO
+
+-- =============================================
+-- Author:		Korbin Dansie
+-- Create date: 2022-11-16
+-- Description:	Helper function to get sales tax rate from a FARMS hotel
+-- Works but could not implment
+-- =============================================
+CREATE PROCEDURE sp_getSalesTaxRate 
+	(@HotelID		smallint,
+	@SalesTaxRate	decimal(6,4) OUTPUT)
+AS
+BEGIN
+		DECLARE @Query	nvarchar(MAX)
+		DECLARE @TQuery nvarchar(MAX)
+
+		SELECT @TQuery = 
+			CONCAT('''SELECT TOP 1 TR.SalesTaxRate 
+			FROM Hotel AS H
+				INNER JOIN Taxrate as TR
+				ON H.TaxLocationID = TR.TaxLocationID
+			WHERE
+				H.HotelID = ', @HotelID, '''')
+
+		CREATE TABLE #temptable (SalesTaxRate decimal(6,4))
+		SELECT @Query = CONCAT('INSERT INTO #temptable SELECT * FROM OPENQUERY(FARMS, ', @TQuery, ')')
+
+		EXEC (@Query)
+
+		SELECT TOP 1 @SalesTaxRate = SalesTaxRate FROM #temptable
+END
+GO
+
 /****************************************************************
 *
 *	SPROC
@@ -514,7 +630,7 @@ AS
 	END
 
 	-- Use the CreditCardID to query the FARMS RESERVATION table to find reservations under that credit card which are active
-	-- Store the potential ReservationID�s.
+	-- Store the potential ReservationID's.
 
 	SET @Command = CONCAT(N'SELECT ReservationID FROM RESERVATION WHERE CreditCardID = ',@CreditCardID,' AND ReservationStatus = ''''A''''')
 	DECLARE @ReservationsTable TABLE (ReservationID smallint) 
@@ -572,7 +688,7 @@ AS
 	-- Use the ReceiptID to call the dbo.ReceiptTotalAmount and get the total cost of that receipt.
 	-- FIX THIS LATER
 
-	DECLARE @ReceiptTotal smallmoney = 12.34--dbo.ReceiptTotalAmount (@ReceiptID = @ReceiptID)
+	DECLARE @ReceiptTotal smallmoney = 18.00 --SELECT dbo.ReceiptTotalAmount (@ReceiptID)
 	DECLARE @TotalCost smallmoney = @ReceiptTotal + @ReceiptTip
 
 	/*
@@ -601,7 +717,7 @@ GO
 CREATE PROCEDURE sp_AddFoodItem 
 @FoodName			varchar(30),
 @FoodDescription	varchar(MAX) = NULL,
-@AgeRestriced		bit,
+@AgeRestricted		bit,
 @FoodCategoryID		tinyint,	
 @FoodDefaultPrice	smallmoney,
 
@@ -688,7 +804,7 @@ AS
 	(
 		@FoodName			,
 		@FoodDescription	,
-		@AgeRestriced		,
+		@AgeRestricted		,
 		@FoodCategoryID		,	
 		@FoodDefaultPrice	
 	)
@@ -1337,120 +1453,7 @@ BEGIN
 END
 GO
 
--- =============================================
--- Author:		Korbin Dansie
--- Create date: 2022-11-16
--- Description:	Given a ReceiptID, return only the total cost of all OrderedItems for that Receipt as a smallmoney.
--- =============================================
-CREATE FUNCTION dbo.ReceiptTotalAmount(@ReceiptID int)
-RETURNS @ReceiptAmounts table (SubTotal smallmoney, DiscountAmount smallmoney, TotalAmount smallmoney, ItemCount tinyint) 
-AS
-BEGIN
-	DECLARE
-		@SubTotal		smallmoney = 0,
-		@DiscountAmount	smallmoney,
-		@ItemCount		tinyint	   = 0
 
-	-- Cursor through to find subtotal
-	DECLARE 
-		@SingleItemPrice smallmoney,
-		@SingleItemQty	 tinyint
-
-	DECLARE cursor_OrderedItems CURSOR
-
-	FOR SELECT
-		OI.OrderedPrice,
-		OI.OrderedItemQty
-	FROM Receipt AS RCPT
-		INNER JOIN Ordered_Item AS OI
-		ON RCPT.ReceiptID = OI.ReceiptID
-	WHERE
-		RCPT.ReceiptID = @ReceiptID
-
-	OPEN cursor_OrderedItems
-
-	FETCH NEXT FROM cursor_OrderedItems INTO
-		@SingleItemPrice ,
-		@SingleItemQty	 
-
-	---- Subtotal = Price * amount, and count how many items were orderd
-	WHILE @@FETCH_STATUS = 0
-    BEGIN
-		SET @SubTotal = @SubTotal + @SingleItemPrice * @SingleItemQty
-		SET @ItemCount = @ItemCount + @SingleItemQty
-
-		FETCH NEXT FROM cursor_OrderedItems INTO
-			@SingleItemPrice ,
-			@SingleItemQty	 
-    END
-	CLOSE cursor_OrderedItems
-	DEALLOCATE cursor_OrderedItems
-
-
-	-- Find discount percentage OR amount
-	DECLARE
-		@DiscountOffAmount	smallmoney,
-		@DiscountOffPercent	decimal(4,2)
-
-	SELECT @DiscountOffAmount = D.DiscountAmount, @DiscountOffPercent = D.DiscountPercent
-	FROM Receipt AS RCPT
-		INNER JOIN Discount AS D
-		ON RCPT.DiscountID = D.DiscountID
-	WHERE
-		RCPT.ReceiptID = @ReceiptID
-
-	---- Do math to find Discounted Rate. If its a percentage off find the amount. If its an fixed amount off just subtract it. If no discount set it to @QuotedRate
-	IF @DiscountOffPercent > 0 
-		SET @DiscountAmount = @SubTotal * (@DiscountOffPercent / 100)
-	ELSE IF @DiscountOffAmount > 0 
-		SET @DiscountAmount = @DiscountOffAmount
-	ELSE -- Is default and has no discount
-		SET @DiscountAmount = 0
-
-
-	-- Add it all up for total
-	INSERT INTO @ReceiptAmounts VALUES
-	(	
-		@SubTotal		,
-		@DiscountAmount	,
-		@SubTotal - @DiscountAmount	,
-		@ItemCount
-	)
-
-	RETURN; -- returns @ReceiptAmounts
-END
-GO
-
--- =============================================
--- Author:		Korbin Dansie
--- Create date: 2022-11-16
--- Description:	Helper function to get sales tax rate from a FARMS hotel
--- Works but could not implment
--- =============================================
-CREATE PROCEDURE sp_getSalesTaxRate 
-	(@HotelID		smallint,
-	@SalesTaxRate	decimal(6,4) OUTPUT)
-AS
-BEGIN
-		DECLARE @Query	nvarchar(MAX)
-		DECLARE @TQuery nvarchar(MAX)
-
-		SELECT @TQuery = 
-			CONCAT('''SELECT TOP 1 TR.SalesTaxRate 
-			FROM Hotel AS H
-				INNER JOIN Taxrate as TR
-				ON H.TaxLocationID = TR.TaxLocationID
-			WHERE
-				H.HotelID = ', @HotelID, '''')
-
-		CREATE TABLE #temptable (SalesTaxRate decimal(6,4))
-		SELECT @Query = CONCAT('INSERT INTO #temptable SELECT * FROM OPENQUERY(FARMS, ', @TQuery, ')')
-
-		EXEC (@Query)
-
-		SELECT TOP 1 @SalesTaxRate = SalesTaxRate FROM #temptable
-END
-GO
 
 
 /****************************************************************
@@ -1496,7 +1499,24 @@ CREATE TRIGGER tr_AgeVerified
 ON Ordered_Item
 AFTER INSERT
 AS
-	DECLARE @NOTHING int
+	DECLARE @FoodItemID smallint
+	DECLARE @ReceiptID int
+
+	DECLARE @AgeRestricted bit
+	
+	SELECT @AgeRestricted = Food_Item.AgeRestricted 
+	FROM Food_Item 
+	WHERE Food_Item.FoodItemID = @FoodItemID
+
+	DECLARE @AgeVerified bit 
+	SELECT @AgeVerified=ReceiptAgeVerified FROM RECEIPT WHERE ReceiptID = @ReceiptID
+	
+	IF (@AgeRestricted = 'true' AND @AgeVerified = 'false') 
+	BEGIN
+		RAISERROR ('Check Customer Age. No changes were made. ', 16, 1)
+		ROLLBACK TRAN
+	END
+
 GO
 
 -- =============================================
@@ -1768,7 +1788,7 @@ DECLARE @FoodID smallint = 0 -- used to query the new food item
 EXEC sp_AddFoodItem 
 @FoodName			= 'Waffles',
 @FoodDescription	= 'We can stay up late, swapping manly stories, and in the morning, I''m making waffles!',
-@AgeRestriced		= 0,
+@AgeRestricted		= 0,
 @FoodCategoryID		= 1,	
 @FoodDefaultPrice	= 50.10,
 
@@ -1812,18 +1832,11 @@ PRINT('')
 
 PRINT('Insert a resturaunt with a valid HotelID')
 INSERT into Restaurant VALUES ('The Second', 1, '5554446666', 2100)
-PRINT('Now insert a resturaunt with an invalid HotelID. It shoul dreturn an error.')
+PRINT('Now insert a resturaunt with an invalid HotelID. It should return an error.')
 INSERT into Restaurant VALUES ('The Third', 1, '6665554444', 13)
 
 SELECT * FROM Ordered_Item WHERE ReceiptID = 3
 
-/*
-@FoodItemID			smallint,
-@ReceiptID			int,
-@MenuID				int = NULL,
-@Amount				smallmoney = NULL,
-@OrderedAdjustments	varchar(MAX) = NULL
-*/
 GO
 
 PRINT('****************************************************************')
@@ -1850,6 +1863,24 @@ from Receipt AS RCPT
 WHERE
 	RCPT.ReceiptID = 5
 
+GO
+
+PRINT('****************************************************************')
+
+GO
+PRINT('')
+PRINT('Problem 12 - To test TRIGGER tr_AgeVerified')
+PRINT('')
+
+PRINT('Insert an ordered item ordering an age restricted item where the receipt is AgeVerified')
+INSERT INTO Ordered_Item VALUES (7, 4, NULL, 1.99, 100)
+PRINT('Now insert an ordered item ordering an age restricted item where the receipt is NOT AgeVerified')
+PRINT('This should produce an error.')
+INSERT INTO Ordered_Item VALUES (7, 2, NULL, 1.99, 1)
+
+select * from dbo.CreateReceipt(4)
+
+select * from Receipt as RCPT where RCPT.ReceiptID in (2,4)
 GO
 
 ----Used to determine order of colums
