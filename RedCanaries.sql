@@ -1744,6 +1744,11 @@ PRINT('')
 
 SELECT * FROM dbo.DisplayMenu(1, '7:00:00')
 
+
+PRINT('Show it with a resturaunt that does not exist. This should return a message that it does not exist.')
+
+SELECT * FROM dbo.DisplayMenu(212, '7:00:00')
+
 GO
 PRINT('****************************************************************')
 
