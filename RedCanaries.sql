@@ -229,8 +229,8 @@ GO
 	ALTER TABLE Restaurant
 	ADD FOREIGN KEY (AddressID) REFERENCES [Address](AddressID)
 	
-	ALTER TABLE Restaurant
-	ADD FOREIGN KEY (HotelID) REFERENCES Hotel(HotelID)
+	--ALTER TABLE Restaurant
+	--ADD FOREIGN KEY (HotelID) REFERENCES Hotel(HotelID)
 
 /********************************
 *	3 Menu
@@ -572,7 +572,7 @@ AS
 	-- Use the ReceiptID to call the dbo.ReceiptTotalAmount and get the total cost of that receipt.
 	-- FIX THIS LATER
 
-	DECLARE @ReceiptTotal smallmoney = $12.34
+	DECLARE @ReceiptTotal smallmoney = 12.34--dbo.ReceiptTotalAmount (@ReceiptID = @ReceiptID)
 	DECLARE @TotalCost smallmoney = @ReceiptTotal + @ReceiptTip
 
 	/*
@@ -1272,7 +1272,7 @@ GO
 *
 ****************************************************************/
 -- =============================================
--- Author:		
+-- Author:		Briella Rutherford
 -- Create date: 2022-11-16
 -- Description:	Works like a check constraint. If the value is anything but 0 it will check with the Farms database to see if it's a valid ID. If not roll back and throw an error.
 -- =============================================
@@ -1280,7 +1280,24 @@ CREATE TRIGGER tr_RestaurantHotelID
 ON Restaurant
 AFTER UPDATE, INSERT
 AS
-	DECLARE @NOTHING int
+	DECLARE @HotelID smallint
+	SELECT TOP 1 @HotelID = HotelID FROM inserted
+	IF (NOT @HotelID = 0)
+
+	BEGIN
+		DECLARE @OpenQuery Nvarchar(100) = N'SELECT * FROM OPENQUERY(FARMS, '''
+		DECLARE @Command Nvarchar(MAX) = CONCAT(@OpenQuery, N'SELECT HotelID FROM Hotel WHERE HotelID = ', @HotelID, ''')')
+
+		DECLARE @IDsTable TABLE (HotelID smallint) 
+		INSERT INTO @IDsTable EXEC (@Command )
+
+		IF (NOT EXISTS (SELECT * FROM @IDsTable))
+		BEGIN
+			ROLLBACK TRAN
+			RAISERROR ('InvalidHotelID', 16, 1)
+		END
+
+	END
 GO
 
 -- =============================================
@@ -1537,6 +1554,32 @@ SELECT * FROM Ordered_Item WHERE ReceiptID = 3
 GO
 
 PRINT('****************************************************************')
+
+GO
+
+PRINT('')
+PRINT('Problem 10 - Insert a new Hotel - To test Trigger tr_RestaurantHotelID')
+PRINT('')
+
+
+PRINT('Insert a resturaunt with a valid HotelID')
+INSERT into Restaurant VALUES ('The Second', 1, '5554446666', 2100)
+PRINT('Now insert a resturaunt with an invalid HotelID. It shoul dreturn an error.')
+INSERT into Restaurant VALUES ('The Third', 1, '6665554444', 13)
+
+SELECT * FROM Ordered_Item WHERE ReceiptID = 3
+
+/*
+@FoodItemID			smallint,
+@ReceiptID			int,
+@MenuID				int = NULL,
+@Amount				smallmoney = NULL,
+@OrderedAdjustments	varchar(MAX) = NULL
+*/
+GO
+
+PRINT('****************************************************************')
+
 GO
 
 DECLARE @Temp decimal(6,4)
