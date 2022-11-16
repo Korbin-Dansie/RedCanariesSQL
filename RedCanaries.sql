@@ -1086,10 +1086,10 @@ AS
 BEGIN
 	DECLARE @ErrorMessage nvarchar(MAX)
 
-	-- Test to see if Restaurant exits
-	IF NOT EXISTS (SELECT TOP 1 RCPT.RestaurantID FROM Receipt AS RCPT WHERE RCPT.ReceiptID = @ReceiptID)
+	-- Test to see if the receipt exists
+	IF NOT EXISTS (SELECT TOP 1 * FROM Receipt AS RCPT WHERE RCPT.ReceiptID = @ReceiptID)
 	BEGIN
-		SET @ErrorMessage = CONCAT('A Restaurant with an id of ''', @ReceiptID, ''' does not exist')
+		SET @ErrorMessage = CONCAT('A receipt with an id of ''', @ReceiptID, ''' does not exist')
 		
 		DELETE FROM @ProduceReceipt
 		INSERT INTO @ProduceReceipt VALUES (@ErrorMessage)
@@ -1711,6 +1711,14 @@ PRINT('')
 SELECT * FROM dbo.CreateReceipt(1)
 
 GO
+PRINT('********************************')
+PRINT('')
+PRINT('Problem 6B - test with an invalid ReceiptID - this SHOULD produce an error.')
+PRINT('')
+
+SELECT * FROM dbo.CreateReceipt(100)
+
+GO
 PRINT('****************************************************************')
 
 PRINT('')
@@ -1767,21 +1775,22 @@ EXEC sp_AddFoodItem
 @FoodDefaultPrice	= 50.10,
 
 @IngredientsList	= 'Baking powder,Butter,Egg,Flour,Milk,Salt,Sugar,Water',
-@MenuList			= '1,5,200',
+@MenuList			= '1,5',
 
 @FoodID				= @FoodID OUTPUT
 
 
 PRINT('********************************')
 PRINT('')
-PRINT('Display the new food item')
+PRINT('Problem 9B - Display the new food item')
 PRINT('')
 
 SELECT * FROM Food_Item AS FI WHERE FI.FoodItemID = @FoodID
 
+
 PRINT('********************************')
 PRINT('')
-PRINT('Display the ingredients needed for the new food item')
+PRINT('Problem 9C - Display the ingredients needed for the new food item')
 PRINT('')
 SELECT 
 	FI.FoodItemID, FI.FoodName, INGR.IngredientName
@@ -1795,10 +1804,32 @@ WHERE
 
 PRINT('********************************')
 PRINT('')
-PRINT('Display one of the restaurants menus where the new food item was added')
+PRINT('Problem 9D - Display one of the restaurants menus where the new food item was added')
 PRINT('')
 select * from dbo.DisplayMenu(1, '7:00');
 
+PRINT('********************************')
+PRINT('')
+PRINT('Problem 9E - Test if ingredients were incorrect - SHOULD throw an error')
+
+EXEC sp_AddFoodItem 
+@FoodName			= 'Dubious Food',
+@FoodDescription	= 'Too gross to look at and permeates a bizarre smell',
+@AgeRestriced		= 0,
+@FoodCategoryID		= 1,	
+@FoodDefaultPrice	= 100.00,
+
+@IngredientsList	= 'Baking powder,Rocks,Egg,Flour,Milk, Salt,Sugar,Water',
+--Rocks dont exits, their should be no space before Salt.
+@MenuList			= DEFAULT,
+
+@FoodID				= @FoodID OUTPUT
+PRINT('')
+
+PRINT('********************************')
+PRINT('')
+PRINT('Problem 9F - Make sure waffles were added and Dubious Food was NOT')
+SELECT * FROM Food_Item
 GO
 PRINT('****************************************************************')
 
