@@ -208,6 +208,7 @@ GO
 	-- Foreign Keys
 	ALTER TABLE Restaurant
 	ADD FOREIGN KEY (AddressID) REFERENCES [Address](AddressID)
+	ON DELETE CASCADE
 
 /********************************
 *	3 Menu
@@ -215,21 +216,25 @@ GO
 	-- Foreign Keys
 	ALTER TABLE Menu
 	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
-	
+	ON DELETE CASCADE
+
 /********************************
 *	4 Menu_Item
 ********************************/
 	ALTER TABLE Menu_Item
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
-	
+	ON DELETE CASCADE
+
 	ALTER TABLE Menu_Item
 	ADD FOREIGN KEY (MenuID) REFERENCES Menu(MenuID)
+	ON DELETE CASCADE
 
 /********************************
 *	5 Food_Item
 ********************************/
 	ALTER TABLE Food_Item
 	ADD FOREIGN KEY (FoodCategoryID) REFERENCES Food_Category(FoodCategoryID)
+	ON DELETE CASCADE
 
 /********************************
 *	6 Food_Category
@@ -241,9 +246,11 @@ GO
 	-- Foreign Keys
 	ALTER TABLE Recipe
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
+	ON DELETE CASCADE
 
 	ALTER TABLE Recipe
 	ADD FOREIGN KEY (IngredientID) REFERENCES Ingredient(IngredientID)
+	ON DELETE CASCADE
 
 /********************************
 *	8 Ingredient
@@ -255,9 +262,11 @@ GO
 	-- Foreign Keys
 	ALTER TABLE Ordered_Item
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
+	ON DELETE CASCADE
 
 	ALTER TABLE Ordered_Item
 	ADD FOREIGN KEY (ReceiptID) REFERENCES Receipt(ReceiptID)
+	ON DELETE CASCADE
 
 	-- Default Keys
 	ALTER TABLE Ordered_Item
@@ -293,9 +302,11 @@ GO
 	-- Foreign Keys
 	ALTER TABLE Special
 	ADD FOREIGN KEY (FoodItemID) REFERENCES Food_Item(FoodItemID)
+	ON DELETE CASCADE
 
 	ALTER TABLE Special
 	ADD FOREIGN KEY (RestaurantID) REFERENCES Restaurant(RestaurantID)
+	ON DELETE CASCADE
 
 /****************************************************************
 *
@@ -1811,9 +1822,6 @@ EXEC sp_AddItem
 	@MenuID = 1,
 	@Amount = 3,
 	@OrderedAdjustments = 'Melt my face off'
-
-
-SELECT * FROM Ordered_Item WHERE ReceiptID = 3
 
 PRINT('Insert an Ordered Item where they have not already ordered that food, without giving the menu. This SHOULD produce an error.')
 
