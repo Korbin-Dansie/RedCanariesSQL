@@ -688,8 +688,10 @@ AS
 	-- Use the ReceiptID to call the dbo.ReceiptTotalAmount and get the total cost of that receipt.
 	-- FIX THIS LATER
 
-	DECLARE @ReceiptTotal smallmoney = 18.00 --SELECT dbo.ReceiptTotalAmount (@ReceiptID)
-	DECLARE @TotalCost smallmoney = @ReceiptTotal + @ReceiptTip
+	DECLARE @ReceiptTotal smallmoney = (SELECT TotalAmount FROM dbo.ReceiptTotalAmount (@ReceiptID))
+	DECLARE @Taxes decimal(4,2)
+	Exec dbo.sp_getSalesTaxRate @HotelID = @HotelID, @SalesTaxRate = @Taxes OUTPUT
+	DECLARE @TotalCost smallmoney = @ReceiptTotal + (@ReceiptTotal * @Taxes * 0.01) + @ReceiptTip
 
 	/*
 	Insert into the FARMS BILLING table an entry with the FolioID, 
@@ -700,7 +702,7 @@ AS
 	*/
 
 	
-	SET @Command = CONCAT(N'INSERT OPENQUERY (FARMS, ''SELECT FolioID, BillingCategoryID, BillingDescription, BillingAmount, BillingItemQty, BillingItemDate FROM Billing WHERE 1=0'') VALUES (',@FolioID,', 5, ''Resturaunt Purchase: ',@ReceiptID,''', ',@ReceiptTotal,', 1, ''',@ReceiptDate , ''')')
+	SET @Command = CONCAT(N'INSERT OPENQUERY (FARMS, ''SELECT FolioID, BillingCategoryID, BillingDescription, BillingAmount, BillingItemQty, BillingItemDate FROM Billing WHERE 1=0'') VALUES (',@FolioID,', 5, ''Resturaunt Purchase: ',@ReceiptID,''', ',@TotalCost,', 1, ''',@ReceiptDate , ''')')
 	EXEC (@Command) 
 
 
@@ -1696,7 +1698,7 @@ EXEC sp_SendBillToRoom
 GO 
 
 PRINT('New Billing Table from FARMS:')
-PRINT('There should be a row for Anita Proul''s most recent meal at hotel 2100 for 12.34')
+PRINT('There should be a row for Anita Proul''s most recent meal at hotel 2100 for 19.35')
 
 DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
 DECLARE @Command varchar (200)= N'SELECT * FROM Billing WHERE FolioID = 7'
@@ -1728,7 +1730,7 @@ SELECT * FROM dbo.DisplaySpecials(1)
 
 PRINT('********************************')
 PRINT('')
-PRINT('Problem 5B - Display the specail menu or Restaurant 3 with split menus')
+PRINT('Problem 5B - Display the special menu or Restaurant 3 with split menus')
 PRINT('')
 
 SELECT * FROM dbo.DisplaySpecials(3)
