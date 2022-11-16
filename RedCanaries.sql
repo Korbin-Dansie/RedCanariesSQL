@@ -1578,58 +1578,117 @@ GO
 *
 ****************************************************************/
 PRINT('')
+<<<<<<< Updated upstream
 PRINT('Problem 1 - Add a new food item to a menu - To test trigger sp_SendBillToRoom')
 PRINT('adding pancakes (1) to the breakfast menu (1)')
+=======
+PRINT('Problem 1 - Add a new food item to a menu - To test trigger tr_MenuItemDefaultPrice')
+PRINT('')
+>>>>>>> Stashed changes
 
-INSERT INTO Menu_Item ([FoodItemID],[MenuID],[MenuItemPrice])
-VALUES (8,1,0)
-
-SELECT Food_Item.FoodName, Menu_Item.MenuItemPrice FROM Menu_Item
-INNER JOIN Food_Item
-ON Menu_Item.FoodItemID = Food_Item.FoodItemID
-WHERE 
-Menu_Item.MenuID = 1
-
-
-PRINT('****************************************************************')
+PRINT('Current menu: ')
+	SELECT Food_Item.FoodName, Menu_Item.MenuItemPrice FROM Menu_Item
+		INNER JOIN Food_Item
+		ON Menu_Item.FoodItemID = Food_Item.FoodItemID
+	WHERE 
+		Menu_Item.MenuID = 1
 GO
 
+PRINT('** adding water (8) to the breakfast menu (1) **')
+	INSERT INTO Menu_Item ([FoodItemID],[MenuID],[MenuItemPrice])
+	VALUES (8,1,0)
+
 PRINT('')
+PRINT('Updated menu: ')
+	SELECT Food_Item.FoodName, Menu_Item.MenuItemPrice FROM Menu_Item
+		INNER JOIN Food_Item
+		ON Menu_Item.FoodItemID = Food_Item.FoodItemID
+	WHERE 
+		Menu_Item.MenuID = 1
+
+GO
+PRINT('****************************************************************')
+
+PRINT('')
+<<<<<<< Updated upstream
 PRINT('Problem 2 - Add the special of the day - To test trigger MenuItemDefaultPrice')
 PRINT('adding water (8) to the receipt (5)')
 
 INSERT INTO Ordered_Item ([FoodItemID],[ReceiptID],[OrderedPrice])
 VALUES (1,5,10.00)
+=======
+PRINT('Problem 2 - Add the special of the day - To test trigger tr_SpecialOfTheDay')
+>>>>>>> Stashed changes
 PRINT('')
-GO
+
+PRINT('Current recipt: ')
 
 -- SELECT * FROM Ordered_Item
-SELECT Food_Item.FoodName, Ordered_Item.OrderedPrice, Ordered_Item.OrderedAdjustments FROM Receipt
-INNER JOIN Ordered_Item
-ON Receipt.ReceiptID = Ordered_Item.ReceiptID
-INNER JOIN Food_Item
-ON Ordered_Item.FoodItemID = Food_Item.FoodItemID
-WHERE Receipt.ReceiptID = 5
+	SELECT Food_Item.FoodName, Ordered_Item.OrderedPrice, Ordered_Item.OrderedAdjustments FROM Receipt
+		INNER JOIN Ordered_Item
+		ON Receipt.ReceiptID = Ordered_Item.ReceiptID
+		INNER JOIN Food_Item
+		ON Ordered_Item.FoodItemID = Food_Item.FoodItemID
+	WHERE Receipt.ReceiptID = 5
 
-PRINT('****************************************************************')
+PRINT('** adding pancakes (1) to the receipt (5) inserted pancakes at $10 special makes them $9 **')
+	INSERT INTO Ordered_Item ([FoodItemID],[ReceiptID],[OrderedPrice])
+	VALUES (1,5,10.00)
 GO
+
+PRINT('Updated recipt: ')
+	SELECT Food_Item.FoodName, Ordered_Item.OrderedPrice, Ordered_Item.OrderedAdjustments FROM Receipt
+		INNER JOIN Ordered_Item
+		ON Receipt.ReceiptID = Ordered_Item.ReceiptID
+		INNER JOIN Food_Item
+		ON Ordered_Item.FoodItemID = Food_Item.FoodItemID
+	WHERE Receipt.ReceiptID = 5
+
+GO
+PRINT('****************************************************************')
 
 PRINT('')
 PRINT('Problem 3 - Send a bill to a reservation - To test SPROC sp_SendBillToRoom')
+<<<<<<< Updated upstream
 
 PRINT('Current Billing Table from FARMS:')
+=======
+PRINT('Uses sp_getSalesTaxRate and dbo.ReceiptTotalAmount')
+PRINT('')
+
+>>>>>>> Stashed changes
 
 DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
 DECLARE @Command varchar (200)= N'SELECT * FROM Billing WHERE FolioID = 7'
 DECLARE @BillingTable TABLE (BillingID smallint, FolioID smallint, BillingCategoryID smallint, BillingDescription char(30), BillingAmount smallmoney, BillintItemQty tinyint, BillingItemDate date) 
 INSERT INTO @BillingTable EXEC (@OpenQuery + @Command + ''')') 
+
+PRINT('')
+PRINT('Current Billing Table from FARMS:')
 SELECT * FROM @BillingTable
 
 PRINT('')
-
 GO
 
+<<<<<<< Updated upstream
 PRINT('Running the SPROC...')
+=======
+PRINT('Running the SPROC WITH an error...')
+PRINT('This should return no matching guests')
+
+EXEC sp_SendBillToRoom 
+	@GuestFirstName	= '',
+	@GuestLastName = 'Proul',
+	@CreditCardNumber = '8887776665551110',
+	@HotelID = 2100,
+	@ReceiptID = 4,
+	@RoomNumber = '202'
+GO 
+
+
+PRINT('')
+PRINT('Running the SPROC without errors...')
+>>>>>>> Stashed changes
 
 EXEC sp_SendBillToRoom 
 	@GuestFirstName	= 'Anita',
@@ -1641,6 +1700,7 @@ EXEC sp_SendBillToRoom
 
 GO 
 
+PRINT('')
 PRINT('New Billing Table from FARMS:')
 PRINT('There should be a row for Anita Proul''s most recent meal at hotel 2100 for 12.34')
 
@@ -1648,21 +1708,21 @@ DECLARE @OpenQuery Nvarchar(50) = N'SELECT * FROM OPENQUERY(FARMS, '''
 DECLARE @Command varchar (200)= N'SELECT * FROM Billing WHERE FolioID = 7'
 DECLARE @BillingTable TABLE (BillingID smallint, FolioID smallint, BillingCategoryID smallint, BillingDescription char(30), BillingAmount smallmoney, BillintItemQty tinyint, BillingItemDate date) 
 INSERT INTO @BillingTable EXEC (@OpenQuery + @Command + ''')') 
+
+PRINT('')
 SELECT * FROM @BillingTable
 
-
-PRINT('****************************************************************')
 GO
+PRINT('****************************************************************')
 
 PRINT('')
 PRINT('Problem 4 - Display the breakfast menu - To test USDF DisplayMenu')
 PRINT('')
 
-
 SELECT * FROM dbo.DisplayMenu(1, '7:00:00')
 
-PRINT('****************************************************************')
 GO
+PRINT('****************************************************************')
 
 PRINT('')
 PRINT('Problem 5 - Display the specail menu - To test USDF DisplaySpecials')
@@ -1679,8 +1739,9 @@ PRINT('')
 
 SELECT * FROM dbo.DisplaySpecials(3)
 
-PRINT('****************************************************************')
 GO
+PRINT('****************************************************************')
+
 
 PRINT('')
 PRINT('Problem 6 - Display the receipt - To test USDF CreateReceipt')
@@ -1689,8 +1750,9 @@ PRINT('')
 
 SELECT * FROM dbo.CreateReceipt(1)
 
-PRINT('****************************************************************')
 GO
+PRINT('****************************************************************')
+
 PRINT('')
 PRINT('Problem 7 - Total up the receipt - To test USDF ReceiptTotalAmount')
 PRINT('Recipt 1, 2, 4 to test types of discount none, fixed, percentage')
@@ -1708,8 +1770,9 @@ GO
 --EXEC sp_getSalesTaxRate @HotelID,  @Temp OUTPUT;
 --print(@Temp)
 
-PRINT('****************************************************************')
 GO
+PRINT('****************************************************************')
+
 
 PRINT('')
 PRINT('Problem 8 - Insert an Ordered Item - To test SPROC sp_AddItem')
@@ -1722,10 +1785,18 @@ EXEC sp_AddItem
 	@Amount = 3,
 	@OrderedAdjustments = 'Melt my face off'
 
-SELECT * FROM Ordered_Item WHERE ReceiptID = 3
-GO
+PRINT('')
+PRINT('After adding ordering three spicy omelette (2):')
+SELECT * FROM dbo.CreateReceipt(3)
 
+
+GO
 PRINT('****************************************************************')
+<<<<<<< Updated upstream
+=======
+
+
+>>>>>>> Stashed changes
 PRINT('')
 PRINT('Problem 9 - Insert an Food item - To test SPROC sp_AddFoodItem')
 PRINT('')
@@ -1766,9 +1837,101 @@ FROM Food_Item AS FI
 WHERE
 	FI.FoodItemID = @FoodID
 
+PRINT('********************************')
+PRINT('')
+PRINT('Display one of the restaurants menus where the new food item was added')
+PRINT('')
 select * from dbo.DisplayMenu(1, '7:00');
 
+<<<<<<< Updated upstream
 GO
+=======
+
+GO
+PRINT('****************************************************************')
+
+PRINT('')
+PRINT('Problem 10 - Insert a new Hotel - To test Trigger tr_RestaurantHotelID')
+PRINT('')
+
+PRINT('Restaurant before: ')
+SELECT * FROM Restaurant;
+
+PRINT('Insert a resturaunt with a valid HotelID')
+INSERT into Restaurant VALUES ('The Second', 1, '5554446666', 2100)
+GO
+
+PRINT('')
+PRINT('** Now insert a resturaunt with an invalid HotelID of (13). It SHOULD return an error. **')
+INSERT into Restaurant VALUES ('The Third', 1, '6665554444', 13)
+GO
+
+PRINT('')
+PRINT('Restaurant after: ')
+SELECT * FROM Restaurant;
+
+
+GO
+PRINT('****************************************************************')
+
+PRINT('')
+PRINT('Problem 11 - To test TRIGGER tr_ReceiptPaid')
+PRINT('')
+
+PRINT('** Create a new blank receipt **')
+INSERT INTO Receipt DEFAULT VALUES
+DECLARE @ReceiptID int
+SELECT @ReceiptID = @@IDENTITY
+
+PRINT('** Display the blank receipt info **')
+select RCPT.ReceiptID, RCPT.ReceiptCCType, RCPT.ReceiptCCNumber, RCPT.ReceiptDate
+from Receipt AS RCPT
+WHERE
+	RCPT.ReceiptID = @ReceiptID
+
+
+UPDATE dbo.Receipt
+SET 
+	ReceiptCCType = 'MAST' ,
+	ReceiptCCNumber = '5113868647762072'
+WHERE
+	Receipt.ReceiptID = @ReceiptID
+
+PRINT('Display updated receipt info')
+select RCPT.ReceiptID, RCPT.ReceiptCCType, RCPT.ReceiptCCNumber, RCPT.ReceiptDate
+from Receipt AS RCPT
+WHERE
+	RCPT.ReceiptID = @ReceiptID
+
+GO
+PRINT('****************************************************************')
+
+PRINT('')
+PRINT('Problem 12 - To test TRIGGER tr_AgeVerified')
+PRINT('')
+
+PRINT('Insert an ordered item ordering an age restricted item where the receipt is AgeVerified')
+INSERT INTO Ordered_Item VALUES (7, 2, NULL, 1.99, 100)
+GO
+
+PRINT('')
+PRINT('Now insert an ordered item ordering an age restricted item where the receipt is NOT AgeVerified')
+PRINT('This SHOULD produce an error.')
+INSERT INTO Ordered_Item VALUES (7, 4, NULL, 1.99, 1)
+GO
+
+PRINT('')
+PRINT('Display the two Receipt information')
+select RCPT.ReceiptID, RCPT.ReceiptAgeVerified  from Receipt as RCPT where RCPT.ReceiptID in (2,4)
+GO
+
+----Used to determine order of colums
+--select *
+--from sys.columns
+--where object_id = object_id('dbo.Receipt')
+--order by column_id
+
+>>>>>>> Stashed changes
 /****************************************************************
 *
 *	Delete Tables when done
