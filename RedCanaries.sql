@@ -1488,21 +1488,23 @@ GO
 -- Description:	When the user updates the credit card number and the credit card type. If both are filled then add the current date and time to the ReceiptDate. If one is missing roll back the info and throw an error stating that it's missing a field.
 -- =============================================
 CREATE TRIGGER tr_ReceiptPaid
-ON Receipt
-AFTER UPDATE
-AS
+ON dbo.Receipt
+AFTER UPDATE AS
 BEGIN
-	-- COLUMNS_UPDATED() OR UPDATE()
-	IF COLUMNS_UPDATED() & 6 = 6 
+	--No sense in continuing to check if no rows were updated.
+	IF @@ROWCOUNT = 0 RETURN;
+
+	-- If colums 2 and 3 not updated return
+	IF NOT SUBSTRING(COLUMNS_UPDATED(), 1, 1) & 6 = 6 
 	BEGIN
-		PRINT('UPGRADES PEOPLE')
+	RAISERROR('Missing Credit card type or number', 1, 1)
+	ROLLBACK
+	RETURN
 	END
 
-	ELSE
-	BEGIN
-		PRINT('NO....')
-		PRINT (COLUMNS_UPDATED() & 6)
-	END
+	UPDATE Receipt
+	SET ReceiptDate = GETDATE()
+	WHERE Receipt.ReceiptID IN (SELECT DISTINCT ReceiptID FROM Inserted)
 END
 GO
 
@@ -1786,19 +1788,32 @@ PRINT('****************************************************************')
 PRINT('')
 PRINT('Problem 10 - To test TRIGGER tr_ReceiptPaid')
 PRINT('')
-select * from Receipt WHERE
-	Receipt.ReceiptID = 5
+
+select RCPT.ReceiptID, RCPT.ReceiptCCType, RCPT.ReceiptCCNumber, RCPT.ReceiptDate
+from Receipt AS RCPT
+WHERE
+	RCPT.ReceiptID = 5
 
 UPDATE dbo.Receipt
-SET ReceiptCCNumber = '5113868647762072', ReceiptCCType = 'MAST'--, ReceiptTip = 100.00
+SET 
+	ReceiptCCType = 'MAST' ,
+	ReceiptCCNumber = '5113868647762072'
 WHERE
 	Receipt.ReceiptID = 5
 
-select * from Receipt WHERE
-	Receipt.ReceiptID = 5
-
+select RCPT.ReceiptID, RCPT.ReceiptCCType, RCPT.ReceiptCCNumber, RCPT.ReceiptDate
+from Receipt AS RCPT
+WHERE
+	RCPT.ReceiptID = 5
 
 GO
+
+----Used to determine order of colums
+--select *
+--from sys.columns
+--where object_id = object_id('dbo.Receipt')
+--order by column_id
+
 /****************************************************************
 *
 *	Delete Tables when done
