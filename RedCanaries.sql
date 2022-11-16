@@ -1685,7 +1685,22 @@ PRINT('')
 
 GO
 
-PRINT('Running the SPROC...')
+PRINT('Running the SPROC with an error...')
+PRINT('This should return no matching guests')
+
+EXEC sp_SendBillToRoom 
+	@GuestFirstName	= '',
+	@GuestLastName = 'Proul',
+	@CreditCardNumber = '8887776665551110',
+	@HotelID = 2100,
+	@ReceiptID = 4,
+	@RoomNumber = '202'
+
+GO 
+
+GO
+
+PRINT('Running the SPROC without errors...')
 
 EXEC sp_SendBillToRoom 
 	@GuestFirstName	= 'Anita',
