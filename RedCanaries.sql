@@ -1491,7 +1491,11 @@ CREATE TRIGGER tr_ReceiptPaid
 ON Receipt
 AFTER UPDATE
 AS
-	DECLARE @NOTHING int
+	-- COLUMNS_UPDATED() OR UPDATE()
+	IF ( COLUMNS_UPDATED() & 6) > 0
+	BEGIN
+		PRINT('')
+	END
 GO
 
 -- =============================================
@@ -1768,6 +1772,12 @@ WHERE
 	FI.FoodItemID = @FoodID
 
 select * from dbo.DisplayMenu(1, '7:00');
+GO
+
+PRINT('****************************************************************')
+PRINT('')
+PRINT('Problem 10 - To test TRIGGER tr_ReceiptPaid')
+PRINT('')
 
 GO
 /****************************************************************
