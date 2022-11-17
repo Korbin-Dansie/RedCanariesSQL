@@ -536,7 +536,7 @@ GO
 -- Author:		Korbin Dansie
 -- Create date: 2022-11-16
 -- Description:	Helper function to get sales tax rate from a FARMS hotel
--- Works but could not implment
+-- Will be used to add the proper tax rate to a receipt before it is sent to FARMS billing
 -- =============================================
 CREATE PROCEDURE sp_getSalesTaxRate 
 	(@HotelID		smallint,
@@ -1804,14 +1804,6 @@ PRINT('')
 SELECT * FROM dbo.ReceiptTotalAmount(1)
 SELECT * FROM dbo.ReceiptTotalAmount(2)
 SELECT * FROM dbo.ReceiptTotalAmount(4)
-GO
-
----- Did not work. Cannot run distributed query in usdf without a lot of work
---DECLARE @Temp decimal(6,4) = 0.0
---DECLARE @HotelID smallint = 2100
-
---EXEC sp_getSalesTaxRate @HotelID,  @Temp OUTPUT;
---print(@Temp)
 
 GO
 PRINT('****************************************************************')
@@ -1901,7 +1893,7 @@ EXEC sp_AddFoodItem
 @FoodDefaultPrice	= 100.00,
 
 @IngredientsList	= 'Baking powder,Rocks,Egg,Flour,Milk, Salt,Sugar,Water',
---Rocks dont exits, their should be no space before Salt.
+--Rocks dont exist, there should be no space before Salt.
 @MenuList			= DEFAULT,
 
 @FoodID				= @FoodID OUTPUT
@@ -1975,13 +1967,13 @@ PRINT('')
 PRINT('Problem 12 - To test TRIGGER tr_AgeVerified')
 PRINT('')
 
-PRINT('Insert an ordered item ordering an age restricted item where the receipt is AgeVerified')
+PRINT('Insert an ordered item ordering an age restricted item where the receipt is NOT AgeVerified')
+PRINT('This SHOULD produce an error.')
 INSERT INTO Ordered_Item VALUES (7, 2, NULL, 1.99, 100)
 GO
 
 PRINT('')
-PRINT('Now insert an ordered item ordering an age restricted item where the receipt is NOT AgeVerified')
-PRINT('This SHOULD produce an error.')
+PRINT('Now insert an ordered item ordering an age restricted item where the receipt is AgeVerified')
 INSERT INTO Ordered_Item VALUES (7, 4, NULL, 1.99, 1)
 GO
 
